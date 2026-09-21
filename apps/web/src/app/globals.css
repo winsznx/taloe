@@ -1,0 +1,263 @@
+/*
+ * Temporary styling only.
+ *
+ * Every visual value is a token on :root so the whole look can be replaced from
+ * this block once the visual reference images arrive, without touching any
+ * product logic, layout structure or state handling. Deliberately restrained:
+ * no brand colours, no gradients, no decorative work. Spacing, hierarchy,
+ * focus states and touch targets are real, because those are structural.
+ */
+
+:root {
+  --color-bg: #fbfbfa;
+  --color-surface: #ffffff;
+  --color-border: #e3e2df;
+  --color-text: #1a1a18;
+  --color-text-muted: #6b6a66;
+  --color-accent: #1a1a18;
+  --color-accent-text: #ffffff;
+  --color-positive: #1f6b3f;
+  --color-caution: #8a5a12;
+  --color-negative: #97241f;
+
+  --radius: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --max-width: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #131312;
+    --color-surface: #1c1c1a;
+    --color-border: #32312e;
+    --color-text: #f2f1ee;
+    --color-text-muted: #a3a29d;
+    --color-accent: #f2f1ee;
+    --color-accent-text: #131312;
+    --color-positive: #6dbb8b;
+    --color-caution: #d6a75e;
+    --color-negative: #e2807b;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible focus everywhere. The whole buy flow must be keyboard-operable. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.page {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  /* 16px side gutter is the minimum at phone width. */
+  padding: var(--space-6) var(--space-4) var(--space-7);
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.wordmark {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/*
+ * Fixture-mode banner. Development mode must visibly differ from live mode so a
+ * screenshot or a demo can never be mistaken for real data.
+ */
+.mode-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-caution);
+  border-radius: 999px;
+  color: var(--color-caution);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.lede {
+  font-size: 1.375rem;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-6);
+  max-width: 34ch;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+}
+
+.field {
+  display: block;
+  margin-bottom: var(--space-5);
+}
+
+.field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+.input {
+  width: 100%;
+  /* 44px minimum touch target. */
+  min-height: 44px;
+  padding: var(--space-3);
+  font: inherit;
+  color: inherit;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.input-group {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.input-suffix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-accent-text);
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.disclosure {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.disclosure summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.notice {
+  margin-top: var(--space-6);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.status-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+  display: grid;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.status-list li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+/*
+ * Pass/fail is never communicated by colour alone: each state carries a text
+ * marker as well, so it survives colour blindness and greyscale printing.
+ */
+.status-marker {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding-top: var(--space-5);
+  }
+  .lede {
+    font-size: 1.1875rem;
+  }
+}

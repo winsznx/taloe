@@ -1,0 +1,17 @@
+{
+  "name": "@taloe/execution",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@taloe/binance-web3": "workspace:*",
+    "@taloe/router-core": "workspace:*",
+    "@taloe/shared": "workspace:*"
+  }
+}

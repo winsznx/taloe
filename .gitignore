@@ -1,0 +1,28 @@
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment — real secrets must never be committed.
+.env
+.env.*
+!.env.example
+
+# Evidence capture written at runtime. Sanitized fixtures that are meant to be
+# committed live under packages/*/fixtures/ and are tracked explicitly.
+evidence/runtime/*
+!evidence/runtime/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log

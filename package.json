@@ -1,0 +1,39 @@
+{
+  "name": "taloe",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @taloe/web dev",
+    "build": "pnpm --filter @taloe/web build",
+    "start": "pnpm --filter @taloe/web start",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "pnpm --filter @taloe/web lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yaml,yml}\"",
+    "verify": "pnpm typecheck && pnpm test",
+    "validate:typecheck": "tsc -p scripts/validate/tsconfig.json --noEmit",
+    "validate:auth": "tsx scripts/validate/auth.ts",
+    "validate:platforms": "tsx scripts/validate/platforms.ts",
+    "validate:ticker": "tsx scripts/validate/ticker.ts",
+    "validate:quotes": "tsx scripts/validate/quotes.ts",
+    "validate:simulation": "tsx scripts/validate/simulation.ts",
+    "validate:all": "tsx scripts/validate/run-all.ts",
+    "validate:route": "tsx scripts/validate/route.ts"
+  },
+  "devDependencies": {
+    "@taloe/binance-web3": "workspace:*",
+    "@taloe/router-core": "workspace:*",
+    "@taloe/shared": "workspace:*",
+    "@types/node": "^24.10.1",
+    "prettier": "^3.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
+  }
+}
