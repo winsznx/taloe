@@ -1,5 +1,5 @@
 /**
- * Orchestration: turns a raw user request into a `RouteDecision` by driving a
+ * Orchestration (MARKET DECISION stage): turns a raw user request into a `RouteDecision` by driving a
  * `DiscoveryPort` through resolution, discovery, quoting, simulation, and
  * finally the pure `evaluateRoutes` engine.
  *
@@ -19,7 +19,6 @@ import type {
   ExecutableRoute,
   RouteDecision,
   RouteRejection,
-  SimulationStatus,
   Underlying,
 } from "@taloe/shared";
 import { toBaseUnitAmount } from "@taloe/shared";
@@ -166,7 +165,6 @@ export async function runRouteDiscovery(
 
   const routes: ExecutableRoute[] = [];
   const preRejected: RouteRejection[] = [];
-  const simulations = new Map<string, SimulationStatus>();
 
   let walletSpendBalanceBaseUnits: string | null = null;
   let walletGasBalanceWei: string | null = null;
@@ -197,32 +195,13 @@ export async function runRouteDiscovery(
     if (quoteResult.value.preRejected) {
       preRejected.push(quoteResult.value.preRejected);
     }
-    for (const route of quoteResult.value.routes) {
-      routes.push(route);
-      if (route.quote.executionMode === "SWAP") {
-        const simResult = params.walletAddress
-          ? await port.simulateRoute(route, {
-              chainId: params.binanceChainId,
-              walletAddress: params.walletAddress,
-              spendTokenAddress: spendAsset.contractAddress,
-              now,
-            })
-          : null;
-        if (simResult?.ok) {
-          simulations.set(route.routeId, simResult.value.status);
-        } else if (simResult) {
-          // Attempted but the call itself failed: record NOT_RUN as an
-          // attempted-and-unusable result so the hard gate fails closed
-          // instead of treating it as "not simulated yet".
-          simulations.set(route.routeId, "NOT_RUN");
-        }
-        // No wallet connected yet, or the simulation call itself failed
-        // transport-wise: the route enters evaluation with NOT_RUN, which
-        // the engine's hard gate already treats as a failure, never a pass.
-      }
-    }
+    routes.push(...quoteResult.value.routes);
   }
 
+  // MARKET DECISION only. Build, simulate and allowance belong to execution
+  // readiness (readiness.ts) and run once, on the selected route, so a wallet
+  // that has not approved the router yet cannot make every market candidate
+  // look unexecutable.
   const decision = evaluateRoutes({
     routeSessionId: params.routeSessionId,
     intent: buildIntent(params, spendAsset, spendAmountBaseUnits, now),
@@ -230,7 +209,6 @@ export async function runRouteDiscovery(
     marketContext,
     routes,
     preRejectedCandidates: preRejected,
-    simulations,
     walletSpendBalanceBaseUnits,
     walletGasBalanceWei,
     alreadyHoldsTargetExposure: params.alreadyHoldsTargetExposure,

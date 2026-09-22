@@ -186,6 +186,7 @@ export function evaluateRoutes(input: EvaluateRoutesInput): RouteDecision {
       simulationStatus,
       simulationAttempted: input.simulations?.has(route.routeId) ?? false,
       supportedExecutionModes,
+      allowWrapperReference: mode.variant !== "NO_RWA_CONTEXT" && mode.variant !== "NO_MARKET_STATUS",
       now,
     });
 

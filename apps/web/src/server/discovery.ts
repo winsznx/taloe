@@ -30,7 +30,7 @@ export function getDiscoveryPort(): DiscoveryPort {
       cached = new FixtureDiscoveryProvider();
       return cached;
     case "live":
-      cached = new LiveDiscoveryProvider(getServices());
+      cached = new LiveDiscoveryProvider(getServices(), config.binanceChainId, { rpcUrl: config.bscRpcUrl });
       return cached;
   }
 }

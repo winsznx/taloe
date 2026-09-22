@@ -18,8 +18,10 @@ build/
 
 # Evidence capture written at runtime. Sanitized fixtures that are meant to be
 # committed live under packages/*/fixtures/ and are tracked explicitly.
-evidence/runtime/*
-!evidence/runtime/.gitkeep
+# Raw live-validation artifacts stay local until curated deliberately (they hold
+# third-party public addresses and full sponsor payloads). Credentials are never in them.
+**/evidence/runtime/*
+!**/evidence/runtime/.gitkeep
 
 # OS / editor
 .DS_Store

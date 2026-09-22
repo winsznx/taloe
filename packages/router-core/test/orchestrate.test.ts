@@ -62,12 +62,26 @@ describe("runRouteDiscovery — end to end through the fixture provider", () => 
     expect(outcome.decision.rejected[0]?.reasons).toContain("QUOTE_EXPIRED");
   });
 
-  it("REFUSE: simulation fails and blocks the SWAP route", async () => {
-    const outcome = await discover(FIXTURE_SCENARIOS.REFUSE_SIMULATION_FAILED);
-    expect(outcome.kind).toBe("DECIDED");
-    if (outcome.kind !== "DECIDED") return;
-    expect(outcome.decision.outcome).toBe("REFUSE");
-    expect(outcome.decision.rejected[0]?.reasons).toContain("SIMULATION_FAILED");
+  it("market decision never simulates: a route whose swap would fail still wins the MARKET decision", async () => {
+    // Simulation is an execution-readiness step (readiness.ts), run once on the selected route.
+    const port = new FixtureDiscoveryProvider();
+    let simulations = 0;
+    const original = port.simulateRoute.bind(port);
+    port.simulateRoute = async (...args) => {
+      simulations += 1;
+      return original(...args);
+    };
+    const outcome = await runRouteDiscovery(port, {
+      routeSessionId: "rs-nosim",
+      underlyingQuery: FIXTURE_SCENARIOS.REFUSE_SIMULATION_FAILED,
+      spendAmountDecimal: "500",
+      walletAddress: FIXTURE_DEFAULT_WALLET_ADDRESS,
+      maxDeviationBps: 150,
+      binanceChainId: "56",
+      now: NOW,
+    });
+    expect(outcome.kind === "DECIDED" && outcome.decision.outcome).toBe("ACT");
+    expect(simulations).toBe(0);
   });
 
   it("UNKNOWN: candidates exist but market context is unavailable", async () => {
@@ -157,33 +171,5 @@ describe("runRouteDiscovery — end to end through the fixture provider", () => 
     if (outcome.kind !== "DECIDED") return;
     expect(outcome.decision.intent.spendTokenDecimals).toBe(18);
     expect(outcome.decision.intent.spendAmountBaseUnits).toBe("500000000000000000000");
-  });
-});
-
-describe("runRouteDiscovery — simulation as a gate through the port", () => {
-  it("an inconsistent (NOT_RUN) simulation refuses that candidate and keeps the survivor", async () => {
-    const base = new FixtureDiscoveryProvider();
-    const port = Object.create(base) as FixtureDiscoveryProvider;
-    port.simulateRoute = async (route, params) => {
-      const result = await base.simulateRoute(route, params);
-      if (route.wrapper.platformId !== "xstock" || !result.ok) return result;
-      return { ok: true, value: { ...result.value, status: "NOT_RUN", failReason: "sponsor response inconsistent" } };
-    };
-    // Two SWAP candidates: make NVDA's xStock inconsistent; Ondo is RFQ (no simulation), so it survives.
-    const outcome = await runRouteDiscovery(port, {
-      routeSessionId: "rs-sim",
-      underlyingQuery: "NVDA",
-      spendAmountDecimal: "500",
-      walletAddress: FIXTURE_DEFAULT_WALLET_ADDRESS,
-      maxDeviationBps: 150,
-      binanceChainId: "56",
-      now: NOW,
-    });
-    expect(outcome.kind).toBe("DECIDED");
-    if (outcome.kind !== "DECIDED") return;
-    expect(outcome.decision.outcome).toBe("ACT");
-    expect(outcome.decision.selected?.route.wrapper.platformId).toBe("ondo");
-    const rejected = outcome.decision.rejected.find((r) => r.platformId === "xstock");
-    expect(rejected?.reasons).toContain("SIMULATION_REQUIRED_BUT_UNAVAILABLE");
   });
 });

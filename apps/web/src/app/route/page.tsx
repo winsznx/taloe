@@ -1,10 +1,17 @@
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 
-import type { RouteEvaluation } from "@taloe/shared";
-import { explainReason, fromBaseUnits, toDecimalString } from "@taloe/shared";
-import { DEFAULT_POLICY, quoteFreshness } from "@taloe/router-core";
-import { runRouteDiscovery } from "@taloe/router-core";
+import type { MarketContext, RouteEvaluation, WrapperCandidate } from "@taloe/shared";
+import { explainReason, fromBaseUnits, fromDecimalString, toDecimalString } from "@taloe/shared";
+import {
+  DEFAULT_POLICY,
+  assessSizeEquivalence,
+  probeWrapperCapacity,
+  quoteFreshness,
+  runRouteDiscovery,
+} from "@taloe/router-core";
+import type { CapacityProbeResult } from "@taloe/router-core";
 import { sessionLabel } from "@taloe/session-mark";
 
 import { getDiscoveryPort } from "@/server/discovery";
@@ -12,6 +19,9 @@ import { getServerConfig } from "@/server/config";
 import { OUTCOME_HEADING, OUTCOME_SUMMARY } from "@/lib/decision-copy";
 import type { IntentQuery } from "@/lib/intent-query";
 import { intentQueryString, parseIntentQuery } from "@/lib/intent-query";
+
+/** Below this the wrappers are usually equivalent; probing capacity would cost quotes and show nothing. */
+const CAPACITY_PANEL_MIN_TICKET_USD = 500;
 
 export default async function RoutePage({
   searchParams,
@@ -78,6 +88,19 @@ export default async function RoutePage({
           rejected={decision.rejected}
           companyName={decision.underlying.companyName}
         />
+      ) : null}
+
+      {decision.outcome === "ACT" && decision.selected && Number(intent.amount) >= CAPACITY_PANEL_MIN_TICKET_USD ? (
+        <Suspense fallback={<p className="field-hint">Measuring safe size from live quotes…</p>}>
+          <CapacityPanel
+            intent={intent}
+            wrappers={[decision.selected, ...decision.alternatives].map((e) => e.route.wrapper)}
+            marketContext={decision.marketContext}
+            spendTokenAddress={decision.intent.spendTokenAddress}
+            spendTokenDecimals={decision.intent.spendTokenDecimals}
+            chainId={config.binanceChainId}
+          />
+        </Suspense>
       ) : null}
 
       {decision.outcome === "REFUSE" || decision.outcome === "UNKNOWN" ? (
@@ -215,10 +238,17 @@ function ActResult({
   companyName: string;
 }): ReactNode {
   const freshness = quoteFreshness(selected.route, DEFAULT_POLICY, new Date());
+  const equivalence = assessSizeEquivalence([selected, ...alternatives]);
   return (
     <>
       <div className="card">
-        <RouteSummary evaluation={selected} freshness={freshness} />
+        {equivalence.kind === "MATERIALLY_EQUIVALENT" ? (
+          <p className="notice" style={{ marginBottom: "var(--space-4)" }}>
+            At this size the routes below give materially the same exposure (within {equivalence.gapBps} bps).
+            Taloe does not see a meaningful difference to choose on, so the route shown is a default, not a win.
+          </p>
+        ) : null}
+        <RouteSummary evaluation={selected} freshness={freshness} requestedAmount={intent.amount} />
 
         {selectionReasons.length > 0 ? (
           <ul className="status-list" style={{ marginTop: "var(--space-4)" }}>
@@ -272,9 +302,11 @@ function ActResult({
 export function RouteSummary({
   evaluation,
   freshness,
+  requestedAmount,
 }: {
   evaluation: RouteEvaluation;
   freshness: "FRESH" | "EXPIRING" | "EXPIRED";
+  requestedAmount?: string;
 }): ReactNode {
   const { route } = evaluation;
   const outputAmount = toDecimalString(fromBaseUnits(route.quote.toTokenAmount, route.wrapper.decimals), 6);
@@ -289,20 +321,29 @@ export function RouteSummary({
         ~{outputAmount} {route.wrapper.tokenSymbol}
       </p>
       <ul className="status-list">
+        {requestedAmount ? (
+          <li>
+            <span className="status-marker">ticket</span>
+            <span>{requestedAmount} USDT requested</span>
+          </li>
+        ) : null}
+        {evaluation.underlyingEquivalentAmount !== null ? (
+          <li>
+            <span className="status-marker">exposure</span>
+            <span>
+              ~{toDecimalString(fromDecimalString(evaluation.underlyingEquivalentAmount), 6)}{" "}
+              {route.wrapper.underlyingTicker} shares equivalent
+            </span>
+          </li>
+        ) : null}
         <li>
           <span className="status-marker">mode</span>
           <span>{route.quote.executionMode === "RFQ" ? "Request-for-quote" : "Automated market maker"}</span>
         </li>
-        {route.quote.priceImpactPercent ? (
-          <li>
-            <span className="status-marker">impact</span>
-            <span>{route.quote.priceImpactPercent}%</span>
-          </li>
-        ) : null}
         {evaluation.referenceDeviationBps !== null ? (
           <li>
             <span className="status-marker">deviation</span>
-            <span>{evaluation.referenceDeviationBps} bps from reference</span>
+            <span>{evaluation.referenceDeviationBps} bps from reference (recomputed by Taloe)</span>
           </li>
         ) : (
           <li>
@@ -310,6 +351,10 @@ export function RouteSummary({
             <span>Not checkable — no trustworthy reference available</span>
           </li>
         )}
+        <li>
+          <span className="status-marker">status</span>
+          <span>Not executed. Approval, a fresh quote and a test run happen after you review.</span>
+        </li>
         <li>
           <span className="status-marker">price</span>
           <span>
@@ -331,5 +376,67 @@ export function RouteSummary({
         ) : null}
       </ul>
     </>
+  );
+}
+
+async function CapacityPanel({
+  intent,
+  wrappers,
+  marketContext,
+  spendTokenAddress,
+  spendTokenDecimals,
+  chainId,
+}: {
+  intent: IntentQuery;
+  wrappers: readonly WrapperCandidate[];
+  marketContext: MarketContext | null;
+  spendTokenAddress: string;
+  spendTokenDecimals: number;
+  chainId: string;
+}): Promise<ReactNode> {
+  const port = getDiscoveryPort();
+  const results: CapacityProbeResult[] = await Promise.all(
+    wrappers.map((wrapper) =>
+      probeWrapperCapacity(port, wrapper, {
+        chainId,
+        spendTokenAddress,
+        spendTokenDecimals,
+        walletAddress: intent.wallet,
+        marketContext,
+      }),
+    ),
+  );
+  const usd = (value: number) => `$${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+
+  return (
+    <div className="card" style={{ marginTop: "var(--space-5)" }}>
+      <p className="field-label">Safe size at {intent.maxDeviationBps / 100}% (from quotes taken just now)</p>
+      <p>Your order: {usd(Number(intent.amount))}</p>
+      <ul className="status-list">
+        {results.map((result) => {
+          const capacity =
+            result.capacities.find((c) => c.thresholdBps === intent.maxDeviationBps) ??
+            result.capacities[result.capacities.length - 1];
+          return (
+            <li key={`${result.platformId}-${result.wrapperSymbol}`}>
+              <span className="status-marker">{result.platformId ?? "?"}</span>
+              <span>
+                <strong>{result.wrapperSymbol}</strong>{" "}
+                {capacity === undefined || capacity.status === "UNKNOWN"
+                  ? "capacity could not be established from current quotes"
+                  : capacity.status === "BELOW_SMALLEST_TESTED"
+                    ? `already outside your limit at ${usd(capacity.breachedAtUsd ?? 0)}`
+                    : capacity.status === "AT_LEAST_MAX_TESTED"
+                      ? `stayed inside your limit at every size tested, up to ${usd(capacity.safeUpToUsd ?? 0)}`
+                      : `inside your limit up to ${usd(capacity.safeUpToUsd ?? 0)}, outside it at ${usd(capacity.breachedAtUsd ?? 0)}`}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="field-hint">
+        Measured from executable quotes at fixed sizes. The true limit lies between the two sizes shown.
+      </p>
+    </div>
   );
 }

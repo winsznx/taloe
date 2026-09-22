@@ -44,7 +44,8 @@ import type {
 } from "@taloe/shared";
 import { interpretSession } from "@taloe/session-mark";
 
-import type { CandidateQuoteResult, DiscoveryPort, Discovered } from "./discovery-port";
+import { DEFAULT_BSC_RPC_URL, readErc20Allowance } from "./chain-reader";
+import type { CandidateQuoteResult, DiscoveryPort, Discovered, UnsignedEvmTransaction } from "./discovery-port";
 import { discoveryErr, discoveryOk } from "./discovery-port";
 
 export interface LiveSponsorServices {
@@ -69,12 +70,23 @@ const USDT_BSC_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
  * attributable PRE_QUOTE rejection rather than a generic transport failure —
  * this is the live-side half of correction 3's issuer-divergence mechanism.
  */
+/** How the balances endpoint labels native BNB (docs say empty string; live says this). */
+const NATIVE_PLACEHOLDER = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+
+/** Explicit slippage bound applied when building the swap for simulation. Provisional; see DECISIONS. */
+const SIMULATION_SLIPPAGE_PERCENT = "1";
+
 const MARKET_HOURS_BUSINESS_CODES = new Set([40367, 40369]);
 
 export class LiveDiscoveryProvider implements DiscoveryPort {
   readonly mode = "live" as const;
 
-  constructor(private readonly services: LiveSponsorServices) {}
+  /** BSC mainnet is product-locked (PRD 1); kept as a constructor option only for tests. */
+  constructor(
+    private readonly services: LiveSponsorServices,
+    private readonly chainId: string = "56",
+    private readonly rpc: { rpcUrl: string; fetchImpl?: typeof fetch } = { rpcUrl: DEFAULT_BSC_RPC_URL },
+  ) {}
 
   async resolveSpendAsset(chainId: string): Promise<Discovered<AssetMetadata>> {
     const result = await this.services.token.getBasicInfo(chainId, USDT_BSC_ADDRESS);
@@ -102,77 +114,68 @@ export class LiveDiscoveryProvider implements DiscoveryPort {
   }
 
   async searchUnderlying(query: string, chainId: string) {
-    const result = await this.services.rwa.search(query, chainId);
+    const result = await this.services.rwa.searchGroups(query);
     if (!result.ok) {
-      return discoveryErr({
-        kind: "SPONSOR_UNAVAILABLE",
-        message: result.error.message,
-        cause: result.error,
-      });
+      return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: result.error.message, cause: result.error });
     }
-    const byTicker = new Map<string, { underlying: Underlying; count: number }>();
-    for (const candidate of result.value) {
-      if (!candidate.underlyingTicker) continue;
-      const key = candidate.underlyingTicker.toUpperCase();
-      const existing = byTicker.get(key);
-      if (existing) {
-        existing.count += 1;
-        continue;
-      }
-      byTicker.set(key, {
+    const matches = result.value
+      .map((group) => ({
+        group,
+        onChain: group.assets.filter((asset) => asset.binanceChainId === chainId),
+      }))
+      .filter((entry) => entry.onChain.length > 0)
+      .map(({ group, onChain }) => ({
         underlying: {
-          ticker: candidate.underlyingTicker,
-          // RWA search does not carry a company name field per the current
-          // schema (see SPONSOR_FINDINGS F-005); the underlying-profile call
-          // in a subsequent step is the real source. Echoing the ticker here
-          // rather than inventing a name.
-          companyName: candidate.underlyingTicker,
+          ticker: group.ticker,
+          companyName: group.companyName ?? group.ticker,
           sector: null,
           logoUrl: null,
           provenance: ["live:rwa/search"],
-        },
-        count: 1,
-      });
-    }
-    return discoveryOk(
-      [...byTicker.values()].map((v) => ({ underlying: v.underlying, identifiedWrapperCount: v.count })),
-    );
+        } satisfies Underlying,
+        identifiedWrapperCount: onChain.length,
+      }));
+    // /rwa/search is a fuzzy keyword search (live: "QQQ" also returns TQQQ, SQQQ,
+    // PSQ). A query that exactly equals one returned ticker is not ambiguous, so
+    // that ticker wins; only genuinely non-exact queries stay ambiguous (PRD 11.1).
+    const exact = matches.filter((m) => m.underlying.ticker.toUpperCase() === query.trim().toUpperCase());
+    return discoveryOk(exact.length === 1 ? exact : matches);
   }
 
   async discoverCandidates(
     underlyingTicker: string,
     chainId: string,
   ): Promise<Discovered<readonly WrapperCandidate[]>> {
-    const result = await this.services.rwa.search(underlyingTicker, chainId);
+    const result = await this.services.rwa.getWrapperCandidates(underlyingTicker, chainId);
     if (!result.ok) {
       return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: result.error.message, cause: result.error });
     }
-    return discoveryOk(
-      result.value.filter(
-        (candidate) => candidate.underlyingTicker.toUpperCase() === underlyingTicker.toUpperCase(),
-      ),
-    );
+    return discoveryOk(result.value);
   }
 
+  /**
+   * Underlying-level context, taken from the first wrapper that actually
+   * reports a market status. Observed live: Ondo reports `marketStatus`
+   * (e.g. "postmarket") while bStock reports null, and the two platforms
+   * report different `referencePrice` values for the same underlying at the
+   * same instant — so this context is one wrapper's view, recorded in
+   * provenance, never a claim about "the" NVDA price.
+   */
   async getMarketContext(underlyingTicker: string): Promise<Discovered<MarketContext | null>> {
-    const result = await this.services.rwa.getUnderlyingMarket(underlyingTicker);
-    if (!result.ok) {
-      // Market/session context being unavailable is not necessarily a hard
-      // failure of discovery — the engine already treats a null context as
-      // "cannot check the deviation constraint" and returns UNKNOWN.
-      return discoveryOk(null);
-    }
+    const candidates = await this.services.rwa.getWrapperCandidates(underlyingTicker, this.chainId);
+    if (!candidates.ok) return discoveryOk(null);
+    const withStatus = candidates.value.find((c) => c.statusInfo?.marketStatus) ?? candidates.value[0];
+    if (!withStatus) return discoveryOk(null);
     return discoveryOk(
       interpretSession({
         underlyingTicker,
-        marketStatus: result.value.marketStatus,
-        openState: result.value.openState,
-        referencePrice: result.value.referencePrice,
-        referenceTime: result.value.time,
-        nextOpenTime: result.value.nextOpenTime,
-        nextCloseTime: result.value.nextCloseTime,
-        statusInfo: result.value.statusInfo,
-        provenance: ["live:rwa/underlying-market"],
+        marketStatus: withStatus.statusInfo?.marketStatus ?? null,
+        openState: withStatus.statusInfo?.openState ?? null,
+        referencePrice: withStatus.referencePrice,
+        referenceTime: null,
+        nextOpenTime: withStatus.statusInfo?.nextOpenTime ?? null,
+        nextCloseTime: withStatus.statusInfo?.nextCloseTime ?? null,
+        statusInfo: withStatus.statusInfo,
+        provenance: [`live:rwa/underlying-market via ${withStatus.tokenSymbol}`],
       }),
     );
   }
@@ -241,6 +244,9 @@ export class LiveDiscoveryProvider implements DiscoveryPort {
       toTokenAddress: route.wrapper.tokenContractAddress,
       amount: route.quote.fromTokenAmount,
       userWalletAddress: params.walletAddress,
+      // /swap REQUIRES slippagePercent or autoSlippage (observed 40001 without either).
+      // An explicit, reviewable bound is used rather than vendor-chosen autoSlippage.
+      slippagePercent: SIMULATION_SLIPPAGE_PERCENT,
     });
     if (!build.ok) {
       return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: build.error.message, cause: build.error });
@@ -269,21 +275,67 @@ export class LiveDiscoveryProvider implements DiscoveryPort {
   }
 
   async getWalletBalances(walletAddress: string, spendAsset: AssetMetadata, chainId: string) {
-    const result = await this.services.wallet.getTokenBalances(chainId, walletAddress);
+    const result = await this.services.wallet.getTokenBalances(chainId, walletAddress, [
+      spendAsset.contractAddress,
+      "", // native asset per the docs
+    ]);
     if (!result.ok) {
       return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: result.error.message, cause: result.error });
     }
-    const spendEntry = result.value.tokenAssets.find(
-      (asset) => asset.tokenContractAddress?.toLowerCase() === spendAsset.contractAddress.toLowerCase(),
+    const spend = result.value.tokenAssets.find(
+      (a) => a.tokenContractAddress?.toLowerCase() === spendAsset.contractAddress.toLowerCase(),
     );
-    // The wallet-balances endpoint path itself is unconfirmed (see
-    // internal/sponsor/API_MATRIX.md A-06), and whether native BNB appears in
-    // this same list under a documented convention (e.g. a zero address) is
-    // unverified. Rather than guess a convention, gas balance is reported as
-    // not checkable until that is confirmed against a live response.
+    // Documented as "" but observed as 0xeeee...eeee, symbol BNB.
+    const native = result.value.tokenAssets.find(
+      (a) => a.tokenContractAddress?.toLowerCase() === NATIVE_PLACEHOLDER || a.tokenContractAddress === "",
+    );
     return discoveryOk({
-      spendBalanceBaseUnits: spendEntry?.balance ?? null,
-      gasBalanceWei: null,
+      spendBalanceBaseUnits: spend?.rawBalance ?? null,
+      gasBalanceWei: native?.rawBalance ?? null,
     });
+  }
+
+  async getAllowance(params: { chainId: string; tokenAddress: string; owner: string; spender: string }) {
+    const result = await readErc20Allowance(this.rpc, params);
+    return result.ok
+      ? discoveryOk(result.value)
+      : discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: `allowance read failed: ${result.message}` });
+  }
+
+  async buildApprovalTransaction(params: {
+    chainId: string;
+    tokenAddress: string;
+    walletAddress: string;
+    amountBaseUnits: string;
+  }): Promise<Discovered<UnsignedEvmTransaction>> {
+    const result = await this.services.trading.getApprovalTransaction({
+      binanceChainId: params.chainId,
+      tokenContractAddress: params.tokenAddress,
+      approveAmount: params.amountBaseUnits,
+    });
+    if (!result.ok) {
+      return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: result.error.message, cause: result.error });
+    }
+    const first = Array.isArray(result.value) ? result.value[0] : result.value;
+    if (!first?.data) {
+      return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: "approve-transaction returned no calldata" });
+    }
+    // The approval is sent to the token contract; the spender is inside the calldata.
+    return discoveryOk({ from: params.walletAddress, to: params.tokenAddress, value: "0", data: first.data });
+  }
+
+  async simulateTransaction(params: {
+    chainId: string;
+    transaction: UnsignedEvmTransaction;
+    now: Date;
+  }): Promise<Discovered<SimulationResult>> {
+    const simulation = await this.services.transaction.simulate({
+      binanceChainId: params.chainId,
+      evmTx: params.transaction,
+    });
+    if (!simulation.ok) {
+      return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: simulation.error.message, cause: simulation.error });
+    }
+    return discoveryOk(simulation.value);
   }
 }

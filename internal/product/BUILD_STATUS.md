@@ -175,3 +175,24 @@ this way. That is still `UNTESTED` (CLAIM_LEDGER D9).
   modes, normalization status, rejections, simulations, decision, API timing) with no signing or broadcast.
 - 157 tests / 11 files; lint, typecheck, build clean. First git checkpoint created.
 - Still `BLOCKED_CREDENTIALS`: every live claim. Still open: native-gas balance (A-10), normalization semantics (all `UNKNOWN`), wallet SDK, session store.
+
+---
+
+## Live validation addendum (2026-09-21)
+
+First authenticated run completed. **Verdict: REVISE** (`internal/evidence/LIVE_VALIDATION_REPORT.md`). Thesis mechanism survives (Ondo + bStock coexist and are both executable on 40 underlyings; wrapper choice is decisive at size);
+the small-size price advantage does not (median 7 bps). Six implementation bugs found and fixed by live data (RWA/quote schemas, basic-info params, balances path, swap slippage, replay nonce, per-token-vs-per-share deviation) plus exact-ticker search.
+Open: allowance-aware pre-sign ordering (fresh wallets fail the simulation gate), no wallet adapter, session-context and RFQ behaviour unverified (after-hours run only).
+Gate H (mainnet fill): **NOT ready.** Changes are uncommitted; raw artifacts are local-only (gitignored) pending curation.
+
+---
+
+## Capacity validation addendum (2026-09-22)
+
+Product revision executed: thesis moved to size-aware execution routing (`PRD_REVISION_1.md`). Pipeline split into MARKET DECISION (no simulation) and EXECUTION READINESS
+(`packages/router-core/src/readiness.ts`, `chain-reader.ts`): `APPROVAL_REQUIRED` is now a first-class state, allowance is read on-chain, approvals are simulated and
+spender-checked before being offered, and a stale quote is never reused after approval. `SafeExecutionCapacity` (`capacity.ts`, `capacity-probe.ts`) is a new evidence
+primitive with no invented liquidity model. Capacity campaign ran live across all 40 overlapping underlyings (`internal/evidence/CAPACITY_VALIDATION_REPORT.md`):
+95.5% small-ticket equivalence confirmed, wrapper divergence at size confirmed as a cross-underlying pattern (not NVDA-only), split-route execution assessed NOT_USEFUL
+given current evidence. 205 tests / 15 files; lint, typecheck, build clean. Session evidence still after-hours only (`SESSION_CAMPAIGN.md`).
+**Verdict: REVISE.** Ready for first live fill: still NO — fresh-wallet approval flow is unsigned/untested end to end, no wallet adapter, no funded wallet.

@@ -19,12 +19,12 @@ Rules:
 | Hack docs first opened | 2026-09-21 ~18:45 | Started with `llms.txt` index |
 | Hackathon registration | not yet | |
 | API key requested | not yet | **Blocking.** See `internal/product/BUILD_STATUS.md`. |
-| Credentials received | not yet | |
-| First signed request attempted | not yet | |
-| First successful signed request | not yet | |
-| First RWA search | not yet | |
-| First quote | not yet | |
-| First simulation | not yet | |
+| Credentials received | before 2026-09-21 22:49 UTC (exact time not recorded) | |
+| First signed request attempted | 2026-09-21 22:49:49Z | `validate:auth` |
+| First successful signed request | 2026-09-21 22:49:50Z | HTTP 200, code 0, first try |
+| First RWA search | 2026-09-21 22:50:31Z | raw shape differed from our guess |
+| First quote | 2026-09-21 22:58:40Z | Ondo `40375` min order; bStock ok |
+| First simulation | 2026-09-21 23:00:5xZ | `40001` (no slippage) then `FAILED` allowance |
 | First mainnet settlement | not yet | |
 
 Docs-to-first-successful-call time cannot be measured until credentials exist. The
@@ -188,3 +188,41 @@ These need credentials. Listed so they are not forgotten and not fabricated.
 **Impact on product:** a naive integration either ignores the revert text (unsafe pass) or treats every SUCCESS with text as failed (over-refuses).
 **Suggested platform change:** state the precedence rule and correct the example.
 **Evidence location:** `internal/sponsor/DOC_ISSUES.md` DOC-005; tests in `packages/binance-web3/test/transaction.test.ts`.
+
+---
+
+# Live-run entries (2026-09-21)
+
+Docs-to-first-successful-call: docs first opened 18:45Z, first successful signed call 22:49Z (dominated by credential wait; the signing itself worked first try).
+Signing from the docs' worked example needed **zero** iterations, which is a genuine strength of the authentication page.
+
+## DX-005 — RWA response shapes are not what a reader infers (schema discovery cost ~35 min)
+`/rwa/search` groups by underlying; profile/market need a contract address; `/quote` `data` is a flat array. The rwa-data reference page *does* document most of it
+(`.../rest-api/rwa-data`), but it is not linked from the introduction pages that `llms.txt` surfaces, so it took several misses to find. **Suggested:** link reference pages from the introductions; ship one worked example response per endpoint.
+
+## DX-006 — Two sibling POST endpoints disagree on query vs body
+`POST market/token/basic-info` reads query params (a JSON body yields `40001 Parameter binanceChainId is required`, misleadingly, because the parameter *was* sent);
+`POST balance/token-balances-by-address` reads a JSON body. ~10 min lost, discovered with a 3-variant probe. **Suggested:** accept both, or fix the error to say "parameters must be in the query string".
+Evidence: `SPONSOR_FINDINGS.md` F-010.
+
+## DX-007 — `40103` "timestamp expired or replayed" for a request that was neither (our bug, misleading message)
+Two identical concurrent requests collide on timestamp+signature. The message points at clock drift. ~15 min. **Suggested:** say "duplicate nonce/signature" and recommend `X-OC-NONCE` in the auth page's own sample client, which sends none.
+
+## DX-008 — Errors that were genuinely good
+`40375 "Minimum order amount is 5 USD."`, `40001 "either slippagePercent or autoSlippage is required"`, `40001 "userWalletAddress is required for RFQ (Ondo) quote"`,
+`40401 "quoteId=… not found or expired"`, and the simulation `failReason` (`BEP20: transfer amount exceeds allowance`) were all specific and actionable.
+
+## DX-009 — Latency and rate limits (583 authenticated calls)
+p50/p95 ms: search 678/1351, tokens 510/872, underlying-market 464/686, price 459/696, quote 637/841, swap 495/820, simulate 556/730, balances 494/577, basic-info 463/1381.
+`x-oc-ratelimit-limit: 5` per endpoint (matches docs). No 429 seen at ~3 req/s. Outcomes: 576 success, 4 business `40001`, 2 `40103` (DX-007), 1 `404` (our wrong path).
+Cost note: one Taloe decision = ~13-15 sequential calls (≈8-10 s) because market context re-fetches the wrapper set; measurable against a 30s quote life.
+
+## DX-010 — Doc/runtime mismatches worth a redesign
+RFQ never observed for Ondo (F-012); xStock absent (F-001); `priceImpactPercent` understates at size (F-016); native BNB address convention (F-015); `assetType` meaning (F-018). Each is classified in `SPONSOR_FINDINGS.md`; none is called a defect.
+
+
+## DX-011 — No Binance endpoint answers "what is my allowance for this spender"
+Every allowance-aware flow (approve, wait, verify) needs this and none of Wallet/Trading/RWA return it. Taloe added a minimal direct RPC reader (`eth_call` to `allowance(address,address)`) rather than depend on a swap simulation's revert text to infer it (F-022). ~30 min including a real BSC RPC call to confirm the calldata encoding.
+
+## DX-012 — Moving simulation off the ranking path only saves requests when candidates are rejected
+Measured on 2 live tickers (NVDA, QQQ; `readiness-cost-2026-09-22T00-21-18-561Z.json`): with exactly 2 quoted wrapper candidates, before/after request counts were roughly equal (25 vs 25, 24 vs 27) because the legacy path only ever simulated the routes that existed, same as the new path simulates the one selected route. The saving is proportional to (candidates - 1); it matters once more than 2 issuers or execution modes are quoted per ticker, which the current 2-platform (Ondo/bStock) universe rarely exercises. Recorded honestly rather than inflated.

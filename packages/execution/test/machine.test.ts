@@ -11,6 +11,32 @@ const BASE = {
   walletAddress: "0x1111111111111111111111111111111111111111",
 };
 
+describe("SWAP machine — allowance-aware readiness", () => {
+  it("makes insufficient allowance its own state instead of a refusal", () => {
+    expect(canTransition("SWAP", "ALLOWANCE_CHECK", "APPROVAL_REQUIRED")).toBe(true);
+    expect(isTerminal("SWAP", "APPROVAL_REQUIRED")).toBe(false);
+  });
+
+  it("simulates the approval before asking the user to sign it", () => {
+    expect(canTransition("SWAP", "APPROVAL_REQUIRED", "APPROVAL_SIGN")).toBe(false);
+    expect(canTransition("SWAP", "APPROVAL_REQUIRED", "APPROVAL_SIMULATE")).toBe(true);
+    expect(canTransition("SWAP", "APPROVAL_SIMULATE", "APPROVAL_SIGN")).toBe(true);
+  });
+
+  it("cannot go from an approval broadcast to a swap without verifying the allowance and re-quoting", () => {
+    expect(canTransition("SWAP", "APPROVAL_CONFIRMED", "REQUOTE_AND_REVALIDATE")).toBe(false);
+    expect(canTransition("SWAP", "APPROVAL_CONFIRMED", "ALLOWANCE_VERIFY")).toBe(true);
+    expect(canTransition("SWAP", "ALLOWANCE_VERIFY", "REQUOTE_AND_REVALIDATE")).toBe(true);
+    expect(canTransition("SWAP", "ALLOWANCE_VERIFY", "BUILD_SWAP")).toBe(false);
+    expect(canTransition("SWAP", "APPROVAL_CONFIRMED", "BUILD_SWAP")).toBe(false);
+  });
+
+  it("checks balance before allowance", () => {
+    expect(canTransition("SWAP", "ROUTE_SELECTED", "ALLOWANCE_CHECK")).toBe(false);
+    expect(canTransition("SWAP", "ROUTE_SELECTED", "BALANCE_CHECK")).toBe(true);
+  });
+});
+
 describe("SWAP machine", () => {
   it("starts in ROUTE_SELECTED", () => {
     expect(createExecution({ ...BASE, mode: "SWAP" }).state).toBe("ROUTE_SELECTED");
@@ -52,10 +78,10 @@ describe("SWAP machine", () => {
   });
 
   it("forces revalidation after an approval confirms", () => {
-    // An approval can consume most of a 30s quote, so the only way out of
-    // APPROVAL_CONFIRMED is a re-quote.
+    // An approval can consume most of a 30s quote. The path out of
+    // APPROVAL_CONFIRMED is ALLOWANCE_VERIFY, then a re-quote; never a build.
     expect(canTransition("SWAP", "APPROVAL_CONFIRMED", "BUILD_SWAP")).toBe(false);
-    expect(canTransition("SWAP", "APPROVAL_CONFIRMED", "REQUOTE_AND_REVALIDATE")).toBe(true);
+    expect(canTransition("SWAP", "ALLOWANCE_VERIFY", "REQUOTE_AND_REVALIDATE")).toBe(true);
   });
 
   it("rejects an illegal transition instead of applying it", () => {
@@ -67,12 +93,12 @@ describe("SWAP machine", () => {
 
   it("appends to history on a legal transition", () => {
     const record = createExecution({ ...BASE, mode: "SWAP" });
-    const result = transition(record, "ALLOWANCE_CHECK", { note: "checking allowance" });
+    const result = transition(record, "BALANCE_CHECK", { note: "checking balance" });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.state).toBe("ALLOWANCE_CHECK");
+      expect(result.value.state).toBe("BALANCE_CHECK");
       expect(result.value.history).toHaveLength(2);
-      expect(result.value.history[1]?.note).toBe("checking allowance");
+      expect(result.value.history[1]?.note).toBe("checking balance");
     }
   });
 

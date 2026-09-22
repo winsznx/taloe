@@ -35,11 +35,16 @@ import type { ExecutionMode } from "@taloe/shared";
 
 export const SWAP_STATES = [
   "ROUTE_SELECTED",
+  "BALANCE_CHECK",
   "ALLOWANCE_CHECK",
+  /** Insufficient allowance. A first-class state, not a refusal: the route is fine, the wallet has not approved yet. */
   "APPROVAL_REQUIRED",
+  "APPROVAL_SIMULATE",
   "APPROVAL_SIGN",
   "APPROVAL_BROADCAST",
   "APPROVAL_CONFIRMED",
+  /** Taloe re-reads the allowance on-chain; the broadcast acknowledgement alone is not trusted. */
+  "ALLOWANCE_VERIFY",
   "REQUOTE_AND_REVALIDATE",
   "BUILD_SWAP",
   "SIMULATE_SWAP",
@@ -100,14 +105,18 @@ export type ExecutionState = SwapState | RfqState;
 
 /** Legal transitions. Anything absent is a bug, not an undocumented shortcut. */
 const SWAP_TRANSITIONS: Readonly<Record<SwapState, readonly SwapState[]>> = {
-  ROUTE_SELECTED: ["ALLOWANCE_CHECK", "REFUSED", "USER_CANCELLED"],
+  ROUTE_SELECTED: ["BALANCE_CHECK", "REFUSED", "USER_CANCELLED"],
+  BALANCE_CHECK: ["ALLOWANCE_CHECK", "REFUSED", "USER_CANCELLED"],
   ALLOWANCE_CHECK: ["APPROVAL_REQUIRED", "REQUOTE_AND_REVALIDATE", "REFUSED", "USER_CANCELLED"],
-  APPROVAL_REQUIRED: ["APPROVAL_SIGN", "REFUSED", "USER_CANCELLED"],
+  APPROVAL_REQUIRED: ["APPROVAL_SIMULATE", "REFUSED", "USER_CANCELLED"],
+  // The approval itself is simulated before the user is asked to sign it.
+  APPROVAL_SIMULATE: ["APPROVAL_SIGN", "REFUSED"],
   APPROVAL_SIGN: ["APPROVAL_BROADCAST", "REFUSED", "USER_CANCELLED"],
   APPROVAL_BROADCAST: ["APPROVAL_CONFIRMED", "VERIFIED_FAILURE", "REFUSED"],
+  APPROVAL_CONFIRMED: ["ALLOWANCE_VERIFY", "REFUSED"],
   // Approval can eat most of a 30s quote, so revalidation after it is
-  // mandatory rather than optional.
-  APPROVAL_CONFIRMED: ["REQUOTE_AND_REVALIDATE", "REFUSED"],
+  // mandatory rather than optional, and the old quote is never reused.
+  ALLOWANCE_VERIFY: ["REQUOTE_AND_REVALIDATE", "REFUSED"],
   REQUOTE_AND_REVALIDATE: ["BUILD_SWAP", "REFUSED", "USER_CANCELLED"],
   BUILD_SWAP: ["SIMULATE_SWAP", "REFUSED"],
   SIMULATE_SWAP: ["SIMULATION_PASSED", "REFUSED"],
@@ -195,6 +204,9 @@ export function initialState(mode: ExecutionMode): ExecutionState {
 export const STATE_COPY: Readonly<Record<ExecutionState, string>> = {
   ROUTE_SELECTED: "Preparing your route",
   RFQ_ROUTE_SELECTED: "Preparing your route",
+  BALANCE_CHECK: "Checking your balance",
+  APPROVAL_SIMULATE: "Test-running the approval before you sign it",
+  ALLOWANCE_VERIFY: "Confirming the approval on the network",
   ALLOWANCE_CHECK: "Checking whether you have approved USDT for this route",
   VENDOR_IDENTIFIED: "Identifying the market maker for this route",
   VENDOR_ALLOWANCE_CHECK: "Checking your approval for this market maker",

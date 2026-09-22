@@ -123,3 +123,20 @@ execute due to gas. This is a real, currently-live product gap, not a hypothetic
 
 **Resolve by:** inspect a live `all-token-balances-by-address` response for a wallet
 holding BNB, or find the correct native-balance endpoint if it is separate.
+
+---
+
+## Live validation outcomes (2026-09-21)
+
+- **A-01** (2+ wrappers): **held** — Ondo + bStock, 40 underlyings.
+- **A-02** (RWA covers all three issuers): **disproved** — no xStock.
+- **A-03** (ratio exists/readable): **held**; direction: Ondo empirical, bStock documented.
+- **A-04** (simulation readable): **held**; the SUCCESS+failReason contradiction did not occur.
+- **A-05** (30s quote life enough to compare and execute): **partly**: TTL is ~30s (measured), one decision costs ~8-10 s of sequential calls. Tight but workable; the approval step consumes more.
+- **A-06** (balances path): **disproved and corrected**.
+- **A-07** (market-hours restrictions): **untested** (after-hours run; no `40367/40369`).
+- **A-08** (basic-info decimals): **held** (USDT 18) after fixing to query params.
+- **A-09/A-10**: resolved (simulation flow works; native gas balance available).
+- **NEW A-11** — Ondo's RFQ behaviour is time/wallet dependent: unknown. Re-run at regular hours and on a weekend.
+- **NEW A-12** — The allowance step must precede simulation; a ranking-time swap simulation gate cannot be used for wallets without allowance.
+

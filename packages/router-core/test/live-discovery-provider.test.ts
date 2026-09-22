@@ -113,3 +113,23 @@ describe("LiveDiscoveryProvider.simulateRoute — quote -> build -> simulate", (
     if (result.ok) expect(result.value.status).toBe("NOT_RUN");
   });
 });
+
+describe("LiveDiscoveryProvider.searchUnderlying — fuzzy keyword search", () => {
+  const group = (ticker: string) => ({
+    ticker,
+    companyName: ticker,
+    assets: [{ platformId: "ondo", binanceChainId: "56", tokenContractAddress: WALLET, tokenSymbol: `${ticker}on`, assetType: 3 }],
+  });
+  const provider = (groups: ReturnType<typeof group>[]) =>
+    new LiveDiscoveryProvider({ rwa: { searchGroups: async () => ok(groups) } } as unknown as LiveSponsorServices);
+
+  it("resolves an exact ticker even though the search also returned lookalikes", async () => {
+    const result = await provider([group("QQQ"), group("TQQQ"), group("SQQQ")]).searchUnderlying("qqq", "56");
+    expect(result.ok && result.value.map((m) => m.underlying.ticker)).toEqual(["QQQ"]);
+  });
+
+  it("keeps a genuinely non-exact query ambiguous", async () => {
+    const result = await provider([group("QQQ"), group("TQQQ")]).searchUnderlying("QQ", "56");
+    expect(result.ok && result.value).toHaveLength(2);
+  });
+});

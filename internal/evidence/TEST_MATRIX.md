@@ -1,6 +1,6 @@
 # Test Matrix
 
-Updated 2026-09-21 (pre-live lock). **157 tests passing across 11 files.**
+Updated 2026-09-21 (pre-live lock). **166 tests passing across 11 files.**
 `pnpm test`.
 
 Every test below runs against synthetic fixtures or the documentation's own worked
@@ -93,3 +93,8 @@ The tests worth knowing about, because they encode the honesty rules:
 
 Not covered by an automated test: a quote that expires *between* build and simulate inside one live call (it would need a real clock gap);
 it is covered structurally by evaluating freshness at decision time (`quote.ttl` gate) and by `QUOTE_EXPIRED` from `/swap`.
+
+
+## Live-validation additions
+Per-share deviation (ratio 4 not read as +300%; genuinely mispriced multi-share wrapper still refused; UNKNOWN issuer cannot be enforced), per-issuer normalizer arithmetic and direction,
+exact-ticker-wins search, and per-request nonce uniqueness. These encode bugs found by live data. Live behaviour itself is evidenced by artifacts, not by these tests.

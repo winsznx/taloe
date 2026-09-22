@@ -1,3 +1,5 @@
+import { fromDecimalString, mul, toDecimalString } from "@taloe/shared";
+
 /**
  * Wrapper -> underlying-equivalent normalization.
  *
@@ -80,10 +82,10 @@ export interface IssuerNormalizer {
 /**
  * Issuer registry.
  *
- * All three currently UNKNOWN. That is the honest position: no live
- * `tokenToShareRatio` response has been observed for any issuer, and the
- * Wallet Skills "shares multiplier" reference is recorded as a related
- * signal for Ondo only — not treated as confirmation.
+ * Ondo (EMPIRICALLY_OBSERVED) and BStock (DOCUMENTED) were promoted on
+ * 2026-09-21 from live evidence, each on its own evidence. xStock stays UNKNOWN:
+ * live RWA data does not list it at all. The Wallet Skills "shares multiplier"
+ * reference remains a related signal for Ondo only, never the basis.
  *
  * When live evidence arrives, an issuer's entry is replaced wholesale (new
  * `semantics`, new `interpretation`, new `provenance`, new bespoke
@@ -94,34 +96,65 @@ export const ISSUER_NORMALIZERS: readonly IssuerNormalizer[] = [
   {
     platformId: "ondo",
     displayName: "Ondo",
-    semantics: "UNKNOWN",
-    interpretation: null,
-    provenance: [],
+    semantics: "EMPIRICALLY_OBSERVED",
+    interpretation: {
+      direction: "SHARES_PER_TOKEN",
+      formula: "underlying shares = tokens x tokenToShareRatio",
+    },
+    provenance: [
+      "DOCUMENTED: Binance RWA Underlying Info, https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data " +
+        "(\"'1.003701' means 1 token ≈ 1.003701 underlying shares\"), retrieved 2026-09-21.",
+      "EMPIRICALLY_OBSERVED: executable LiquidMesh quotes 2026-09-21T23:03Z — CRWDon (ratio 4.0): $994.10/token = $248.53/share " +
+        "(-4 bps vs reference) under shares-per-token, but $3,976/share under the inverse; KLACon (ratio 10.026): +35 bps vs +90,614 bps. " +
+        "Artifact: internal/evidence/runtime/normalization-crosscheck-2026-09-21T23-03-54-939Z.json",
+      "Internal consistency: tokenPrice / referencePrice == tokenToShareRatio for every one of 488 parseable tokens " +
+        "(raw-universe-*.json). This alone is NOT independent evidence: referencePrice is documented as derived from tokenPrice.",
+    ],
     relatedSignals: [
-      "Binance Wallet Skills documentation (developers.binance.com, tokenized-securities " +
-        "use case) references an Ondo-specific shares multiplier in the context of the " +
-        "Agentic Wallet stock-trading flow. This is a different API surface from the RWA " +
-        "Market API's `tokenToShareRatio` field, uses different terminology, and has not " +
-        "been confirmed to describe the same quantity in the same direction. Recorded as a " +
-        "signal worth checking first when live validation starts, not as an answer.",
+      "Binance Wallet Skills documentation references an Ondo-specific shares multiplier (different API surface). " +
+        "It is consistent with the direction above but is NOT what established it.",
     ],
     note:
-      "Ondo trades exclusively via RFQ per the current Trading API docs. Its ratio direction " +
-      "is unconfirmed on the RWA API. Fails closed until an actual token record is observed.",
-    normalize: () => null,
+      "Direction established from Binance's field definition and confirmed by executable prices on tokens whose ratio is far from 1. " +
+      "Ondo's own issuer documentation was not consulted; that remains a gap.",
+    normalize: ({ ratioRaw, tokenAmountDecimal }) => {
+      try {
+        const ratio = fromDecimalString(ratioRaw);
+        if (ratio <= 0n) return null;
+        return toDecimalString(mul(fromDecimalString(tokenAmountDecimal), ratio), 8);
+      } catch {
+        return null;
+      }
+    },
   },
   {
     platformId: "bstock",
     displayName: "BStock",
-    semantics: "UNKNOWN",
-    interpretation: null,
-    provenance: [],
-    relatedSignals: [],
+    semantics: "DOCUMENTED",
+    interpretation: {
+      direction: "SHARES_PER_TOKEN",
+      formula: "underlying shares = tokens x tokenToShareRatio",
+    },
+    provenance: [
+      "DOCUMENTED: Binance RWA Underlying Info field definition (platform-agnostic), " +
+        "https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data, retrieved 2026-09-21.",
+    ],
+    relatedSignals: [
+      "Every observed bStock ratio is within 0.4% of 1 (max 1.0038), so executable prices cannot discriminate the direction " +
+        "(consistent with shares-per-token at 10-40 bps noise, not proof). tokenPrice/referencePrice == ratio holds but is not independent.",
+    ],
     note:
-      "BStock returns mixed SWAP/RFQ routes for the same pair, which makes its normalization " +
-      "load-bearing for cross-execution-mode comparison specifically. No related-signal " +
-      "evidence has been found for this issuer; it starts from a strictly blank slate.",
-    normalize: () => null,
+      "Rests on Binance's documented field meaning only. Not empirically discriminated and issuer documentation was not consulted. " +
+      "Demote to UNKNOWN if any bStock token with ratio far from 1 disagrees with its quotes.",
+    normalize: ({ ratioRaw, tokenAmountDecimal }) => {
+      try {
+        const ratio = fromDecimalString(ratioRaw);
+        if (ratio <= 0n) return null;
+        return toDecimalString(mul(fromDecimalString(tokenAmountDecimal), ratio), 8);
+      } catch {
+        return null;
+      }
+    },
   },
   {
     platformId: "xstock",

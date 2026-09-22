@@ -194,3 +194,71 @@ Taloe keeps `/quote` -> `/swap` and keeps trusting the runtime `executionMode` o
 **Future experiment (not run, no advantage claimed):** does the single round trip materially reduce quote-expiry failures for
 tokenized-equity execution compared with `/quote` -> `/swap`? Measure expiry/failure rate and end-to-end latency for both paths at
 $5/$25/$100 during and outside US hours; note the `LiquidMesh`-only vendor restriction limits which routes it can even reach.
+
+---
+
+# Live validation findings (2026-09-21, first authenticated run)
+
+Artifacts: `internal/evidence/runtime/` (see `internal/evidence/LIVE_VALIDATION_REPORT.md`).
+
+## F-001 UPDATE — xStock is absent from live RWA data
+**Classification:** `DOCUMENTATION_AMBIGUITY` (Trading docs vs RWA docs), resolved for RWA data by a live observation.
+`/rwa/platforms` returns only `ondo` and `bstock` (`raw-platforms-2026-09-21T22-50-20-312Z.json`). The Trading API docs describe xStock (`type=2`, AMM) as first-class;
+no xStock token appears in `/rwa/search` or `/rwa/tokens`. Whether xStock is tradable through `/quote` at all was **not tested** (no xStock contract address is discoverable via RWA data).
+The earlier expectation "NVDAx exists" is **not supported**; Taloe's two-wrapper thesis rests on Ondo + bStock only.
+
+## F-009 — V1 RWA schemas were wrong; `/rwa/search` is grouped by underlying
+**Classification:** `DEVELOPER_ERROR` (guessed schema) / `DOCUMENTATION_GAP` (F-005). `search` returns `[{ticker, companyName, assets:[…]}]`; `underlying-profile`/`-market` take
+`(binanceChainId, tokenContractAddress)`, not a ticker; `/quote` `data` is a flat array of routes. Fixed in `schemas.ts`/`rwa.ts`/`trading.ts`.
+
+## F-010 — `POST token/basic-info` reads QUERY parameters and ignores a JSON body; `POST token-balances-by-address` reads a JSON body
+**Classification:** `DOCUMENTATION_GAP`. Two POST endpoints in the same API family disagree on where parameters go. A body to `basic-info` answers `40001 "Parameter binanceChainId is required"`
+even when `binanceChainId` is in the body. ~10 minutes lost. Raw: see `DX_JOURNAL.md` DX-006.
+
+## F-011 — Identical concurrent requests are rejected as replays unless `X-OC-NONCE` is sent
+**Classification:** `DEVELOPER_ERROR` (ours), with a `DOCUMENTATION_AMBIGUITY` note: the docs say the nonce "falls back to X-OC-SIGN if omitted", which means two identical
+requests in the same millisecond (same timestamp, same signature) collide as `40103`. Observed 2/79 searches. Fixed with a per-request nonce.
+
+## F-012 — Ondo `NVDAon` routes as `SWAP`, not RFQ; no RFQ observed for any token
+**Classification:** `RUNTIME_DIFFERENCE` (single time window, after-hours, wallet supplied). Docs: "Ondo … always routed via 3-vendor RFQ … all routes return executionMode=RFQ".
+Live: 80/80 quotes (40 underlyings x 2) + 30 build/simulate calls were `SWAP` via `LiquidMesh`. Not yet reproduced across sessions; not called a defect.
+The `RFQ (Ondo)` wording in the `40001` message for a missing wallet suggests the RFQ path is still gated on wallet presence.
+
+## F-013 — Ondo minimum order is $5 USD, undocumented in what we read; USDT is slightly under $1
+**Classification:** `DOCUMENTATION_GAP`. `40375 "Minimum order amount is 5 USD."` at exactly 5 USDT (USDT unit price 0.9998). Sizes >= 5.1 USDT work. New business code `40375`.
+
+## F-014 — `/swap` requires `slippagePercent` or `autoSlippage`
+**Classification:** `DOCUMENTATION_GAP` (we omitted it; `40001 "either slippagePercent or autoSlippage is required"`). Documented on the reference page; our adapter is fixed (explicit 1%).
+
+## F-015 — Wallet balances: documented path/native convention differ from what works
+**Classification:** `DOCUMENTATION_AMBIGUITY`. The path we guessed (`/wallet/all-token-balances-by-address`) 404s; the documented `/balance/all-token-balances-by-address` is paginated (20/page);
+`POST /balance/token-balances-by-address` takes tokens explicitly. Native asset is documented as an empty-string contract address but returned as `0xeeee…eeee` (symbol BNB).
+
+## F-016 — `priceImpactPercent` under-reports at size
+**Classification:** `UNRESOLVED` (1 observation, would need reproduction before any stronger label). NVDAon @ $10,000: reported `0.7187` (docs: percent) vs measured shortfall 71.7% relative to bStock (12.445 vs 43.970 shares). NVDAon @ $2,000: reported 0.0211 vs measured ~1.5%. `size-probe-2026-09-21T23-16-59-691Z.json`.
+
+## F-017 — `referencePrice` is derived from `tokenPrice`, and differs by wrapper
+**Classification:** `DOCUMENTATION_AMBIGUITY`. Documented as "derived from the on-chain token price, not an official quote". `tokenPrice/referencePrice == tokenToShareRatio` for 488/488 tokens.
+Different wrappers of one underlying report different reference prices at the same instant (NVDAon 227.225 vs NVDAB 227.083). It is a per-wrapper mark, not an independent stock price.
+
+## F-018 — `assetType` is asset class, not issuer family
+**Classification:** `DOCUMENTATION_AMBIGUITY`. RWA docs: 1=Stock, 2=Pre-IPO, 3=ETF. Trading docs map types to issuers (1 Ondo, 2 xStock, 3 BStock). Live data follows the RWA docs (both platforms carry types 1 and 3).
+
+## F-019 — `/rwa/tokens` is incomplete relative to `/rwa/platforms` and `/rwa/search`
+**Classification:** `UNRESOLVED`. Ondo BSC: 442 returned vs 458 advertised; bStock 46 vs 77; `AAPLB` (found by search) is missing. Cause unknown (default page limit or filtering; no pagination parameter documented).
+
+## F-020 — Fuzzy `/rwa/search`
+**Classification:** `DOCUMENTATION_GAP`. Keyword "QQQ" also returns TQQQ, SQQQ, PSQ. Handled with an exact-ticker-wins rule.
+
+## F-021 — Quote lifetime confirmed
+**Classification:** none needed. Documented ~30s; measured buildable at 29.1s and `40401` at 33.5s (n=1 per delay). `ttl-probe-2026-09-21T23-16-18-735Z.json`.
+
+## F-007 UPDATE — the simulate contract holds; the documented contradiction did not reproduce
+30 swap simulations and 1 approval simulation: statuses `FAILED` (with a matching revert reason) and `SUCCESS` (`failReason: null`). No `SUCCESS`+`failReason`. Stays `DOCUMENTATION_AMBIGUITY`, not reproduced.
+
+
+## F-022 — Reading an ERC-20 allowance requires a separate JSON-RPC call; no Binance endpoint reports it
+**Classification:** `DOCUMENTATION_GAP`. Neither the Wallet nor the Trading API exposes an ERC-20 `allowance(owner,spender)` read. Taloe now reads it directly via `eth_call` against a BSC RPC (`packages/router-core/src/chain-reader.ts`), independent of the swap-simulation revert text, so "no allowance" and "RPC unreachable" are never conflated.
+
+## F-023 — The approval-transaction endpoint's spender is inside the calldata, not a labeled field
+**Classification:** `DOCUMENTATION_GAP`. `/approve-transaction` returns `data`/`dexContractAddress`/`gasLimit`/`gasPrice`; the spender granted by the approval must be decoded from `data` (or cross-checked against the quote's `approveTarget`) rather than read from a field. Taloe's readiness flow cross-checks the simulated `allowanceChanges[].spender` against the quote's `approveTarget` and refuses (`APPROVAL_SPENDER_MISMATCH`) on a mismatch instead of trusting the label.

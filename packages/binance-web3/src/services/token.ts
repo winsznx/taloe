@@ -28,7 +28,10 @@ export class TokenService {
     return this.client.request({
       method: "POST",
       path: TOKEN_PATHS.basicInfo,
-      body: { binanceChainId, tokenContractAddress },
+      // Observed live 2026-09-21: this POST reads its parameters from the QUERY
+      // string; a JSON body (object or array) is ignored and answers 40001
+      // "Parameter binanceChainId is required". See SPONSOR_FINDINGS F-010.
+      query: { binanceChainId, tokenContractAddress },
       schema: tokenBasicInfoSchema,
     });
   }

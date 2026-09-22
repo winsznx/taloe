@@ -153,4 +153,20 @@ describe("BinanceWeb3Client", () => {
       "https://web3.binance.com/build/api/v1/dex/market/rwa/search?keyword=NVDA",
     );
   });
+
+  it("sends a unique X-OC-NONCE on every request so identical concurrent requests are not replays", async () => {
+    const nonces: string[] = [];
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      nonces.push((init?.headers as Record<string, string>)["X-OC-NONCE"] ?? "");
+      return jsonResponse({ code: 0, data: { value: "ok" } });
+    });
+    const client = new BinanceWeb3Client({ ...CONFIG, fetchImpl: fetchImpl as never });
+    await Promise.all([
+      client.request({ method: "GET", path: "/api/v1/x", schema }),
+      client.request({ method: "GET", path: "/api/v1/x", schema }),
+    ]);
+    expect(nonces).toHaveLength(2);
+    expect(nonces[0]).not.toBe("");
+    expect(nonces[0]).not.toBe(nonces[1]);
+  });
 });

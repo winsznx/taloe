@@ -10,6 +10,8 @@
 
 > Visual design tokens are intentionally excluded from this PRD. The frontend requirements below define information architecture, interaction behavior, states, content hierarchy, responsiveness, and accessibility. Final visual styling should follow the inspiration images supplied later without changing the product logic or required states.
 
+> **REVISION 1 (2026-09-22):** the product thesis was revised after live validation. Read `PRD_REVISION_1.md` first. Passages marked "Amended by Revision 1" below are superseded and kept for historical truth.
+
 ---
 
 ## 1. Product Lock
@@ -25,6 +27,8 @@ Internal subsystem names:
 - **Route Watch** - optional persistent Agent Studio extension. It is not required for the core product and must not delay the main submission.
 
 ### 1.2 One-line product
+
+> **Amended by Revision 1:** the product is a size-aware execution router. It selects the wrapper that can execute the requested size within the user's deviation limit, or refuses. It does not promise the best price at small tickets.
 
 Taloe turns an intent such as **"Buy $500 of NVIDIA"** into the best executable tokenized NVIDIA exposure available on BSC under the user's constraints, or refuses to trade when no available route qualifies.
 
@@ -50,6 +54,8 @@ The product must never collapse into any of these shapes:
 - a safety or verification page pretending to be the product.
 
 ### 1.5 Core decision primitive
+
+> **Amended by Revision 1:** the primitive is now: which representation can execute the requested underlying-equivalent exposure at this size without exceeding the user's execution constraint? `APPROVAL_REQUIRED` is an execution-readiness state, not a market outcome.
 
 > Given an underlying ticker, spend amount, wallet, current market context, available wrappers, executable routes, and user constraints, which wrapper + execution path gives the best valid underlying-equivalent exposure now?
 
@@ -113,6 +119,8 @@ Taloe moves wrapper and execution selection into the product.
 
 ### 3.1 Primary user job
 
+> **Amended by Revision 1:** primary user value is avoiding a materially bad fill and comparing wrappers like for like. It is not small-size price savings.
+
 > I already decided that I want exposure to a named company. Find a valid way to acquire that exposure on BSC without making me understand every issuer token and execution path.
 
 ### 3.2 First customer
@@ -163,6 +171,8 @@ If Taloe cannot show a meaningful improvement in valid execution decisions over 
 12. Produce judge-visible evidence without turning the main web app into a proof dashboard.
 
 ### 4.2 Explicit non-goals for the hackathon build
+
+> **Amended by Revision 1:** adds: no small-size savings claim, no split execution, no xStock or RFQ product claim until observed live.
 
 - predicting stock prices or Monday opens;
 - optimizing or advertising PnL;
@@ -379,6 +389,8 @@ Taloe does not require a two-sided marketplace. It can create value for one user
 Exact library versions must be pinned by the lockfile at build time rather than copied from this PRD.
 
 ### 8.3 Route map
+
+> **Amended by Revision 1:** the route page shows requested ticket, expected underlying-equivalent exposure, effective deviation, execution status, and safe capacity only when backed by current quotes.
 
 #### `/`
 Primary Taloe experience.
@@ -861,6 +873,8 @@ If exact equivalent exposure cannot be established, that wrapper cannot compete 
 
 ## 11. WrapRoute Decision Pipeline
 
+> **Amended by Revision 1:** the pipeline is split into MARKET DECISION and EXECUTION READINESS. Simulation runs once, on the selected route, after allowance is resolved. See `PRD_REVISION_1.md`.
+
 ### 11.1 Step 1 - Resolve the underlying
 
 Input: `NVDA`, `NVIDIA`, etc.
@@ -996,6 +1010,8 @@ No LLM may invent these reasons from free-form narrative. The UI text is generat
 ## 12. Execution State Machines
 
 ### 12.1 SWAP mode
+
+> **Amended by Revision 1:** adds BALANCE_CHECK, APPROVAL_SIMULATE and ALLOWANCE_VERIFY. An approval always leads to a fresh re-quote. A stale quote is never reused.
 
 ```text
 ROUTE_SELECTED

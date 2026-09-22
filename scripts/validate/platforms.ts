@@ -28,10 +28,10 @@ async function main(): Promise<void> {
   const artifactPath = writeArtifact(capture, "response", result.value);
   console.log(`\nPlatforms returned (${result.value.length}):`);
   for (const platform of result.value) {
-    console.log(`  - ${platform.platformId} (${platform.platformName ?? "no name"})`);
+    console.log(`  - ${platform.platformId} tickers=${platform.tickerCount} chains=${JSON.stringify(platform.chainDistribution)}`);
   }
 
-  const ids = result.value.map((p) => p.platformId.toLowerCase());
+  const ids = result.value.map((p) => (p.platformId ?? "").toLowerCase());
   console.log(`\nxStock present: ${ids.some((id) => id.includes("xstock")) ? "YES" : "NO"}`);
   console.log(`Raw response saved: ${artifactPath}`);
   console.log(

@@ -139,6 +139,10 @@ export class BinanceWeb3Client {
       query: options.query,
       body: rawBody,
       recvWindowMs: this.#config.recvWindowMs,
+      // Unique per attempt. Without it the anti-replay key falls back to the
+      // signature, and two identical requests in the same millisecond (observed
+      // live: parallel rwa/search calls) collide as 40103 "replayed".
+      nonce: crypto.randomUUID(),
     });
 
     // `signed.requestPath` already carries /build, and the base URL ends with

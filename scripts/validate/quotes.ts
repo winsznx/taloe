@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   }
   const usdtDecimals = usdtInfo.value.decimals;
 
-  const search = await services.rwa.search(ticker, services.chainId);
+  const search = await services.rwa.getWrapperCandidates(ticker, services.chainId);
   if (!search.ok) {
     console.error(`FAIL: search failed [${search.error.kind}]: ${search.error.message}`);
     process.exit(1);

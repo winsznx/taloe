@@ -43,7 +43,7 @@ async function main(): Promise<void> {
   console.log("\n== V3/V4: wrapper search per ticker ==");
   const perTicker: { ticker: string; wrapperCount: number; platforms: string[]; error: string | null }[] = [];
   for (const ticker of tickers) {
-    const result = await services.rwa.search(ticker, services.chainId);
+    const result = await services.rwa.getWrapperCandidates(ticker, services.chainId);
     if (result.ok) {
       const platformIds = [...new Set(result.value.map((w) => w.platformId ?? "unknown"))];
       perTicker.push({ ticker, wrapperCount: result.value.length, platforms: platformIds, error: null });

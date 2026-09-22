@@ -43,6 +43,14 @@ export function discoveryErr(error: DiscoveryError): { ok: false; error: Discove
 }
 export type Discovered<T> = { ok: true; value: T } | { ok: false; error: DiscoveryError };
 
+/** An unsigned EVM transaction, exactly the fields the simulate endpoint accepts. */
+export interface UnsignedEvmTransaction {
+  readonly from: string;
+  readonly to: string;
+  readonly value: string;
+  readonly data: string;
+}
+
 export interface UnderlyingMatch {
   readonly underlying: Underlying;
   readonly identifiedWrapperCount: number;
@@ -134,4 +142,32 @@ export interface DiscoveryPort {
     spendAsset: AssetMetadata,
     chainId: string,
   ): Promise<Discovered<{ spendBalanceBaseUnits: string | null; gasBalanceWei: string | null }>>;
+
+  /**
+   * ERC-20 allowance the owner has granted the spender, in base units, read
+   * from the chain itself rather than inferred from a failed simulation. A
+   * failure is an error, never zero: "could not read" and "no allowance" lead
+   * to different product behaviour.
+   */
+  getAllowance(params: {
+    chainId: string;
+    tokenAddress: string;
+    owner: string;
+    spender: string;
+  }): Promise<Discovered<string>>;
+
+  /** Binance-built approval transaction for exactly `amountBaseUnits`. */
+  buildApprovalTransaction(params: {
+    chainId: string;
+    tokenAddress: string;
+    walletAddress: string;
+    amountBaseUnits: string;
+  }): Promise<Discovered<UnsignedEvmTransaction>>;
+
+  /** Simulate an arbitrary unsigned transaction (used for the approval). */
+  simulateTransaction(params: {
+    chainId: string;
+    transaction: UnsignedEvmTransaction;
+    now: Date;
+  }): Promise<Discovered<SimulationResult>>;
 }

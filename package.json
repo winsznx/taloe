@@ -24,7 +24,12 @@
     "validate:quotes": "tsx scripts/validate/quotes.ts",
     "validate:simulation": "tsx scripts/validate/simulation.ts",
     "validate:all": "tsx scripts/validate/run-all.ts",
-    "validate:route": "tsx scripts/validate/route.ts"
+    "validate:route": "tsx scripts/validate/route.ts",
+    "validate:raw": "tsx scripts/validate/raw.ts",
+    "validate:campaign": "tsx scripts/validate/campaign.ts",
+    "validate:capacity": "tsx scripts/validate/capacity.ts",
+    "validate:capacity-report": "tsx scripts/validate/capacity-report.ts",
+    "validate:readiness-cost": "tsx scripts/validate/readiness-cost.ts"
   },
   "devDependencies": {
     "@taloe/binance-web3": "workspace:*",

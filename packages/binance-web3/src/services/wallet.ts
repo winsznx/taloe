@@ -17,7 +17,7 @@ import { tokenBalanceSchema, transactionDetailSchema } from "../schemas";
 
 export const WALLET_PATHS = {
   transactionDetail: "/api/v1/dex/post-transaction/transaction-detail-by-txhash",
-  tokenBalances: "/api/v1/dex/wallet/all-token-balances-by-address",
+  tokenBalances: "/api/v1/dex/balance/token-balances-by-address",
 } as const;
 
 export type ChainTxStatus = "INDEXING" | "PENDING" | "SUCCESS" | "FAIL";
@@ -79,11 +79,20 @@ export class WalletService {
     });
   }
 
-  async getTokenBalances(binanceChainId: string, address: string) {
+  /**
+   * Balances for specific tokens (POST body; observed live 2026-09-21).
+   * The V1 path (`/wallet/all-token-balances-by-address`) was a wrong guess
+   * and returned 404. Pass `""` for the chain's native asset per the docs;
+   * the response reports native BNB as 0xeeee...eeee.
+   */
+  async getTokenBalances(binanceChainId: string, address: string, tokenContractAddresses: readonly string[]) {
     return this.client.request({
-      method: "GET",
+      method: "POST",
       path: WALLET_PATHS.tokenBalances,
-      query: { binanceChainId, address },
+      body: {
+        address,
+        tokenContractAddresses: tokenContractAddresses.map((tokenContractAddress) => ({ binanceChainId, tokenContractAddress })),
+      },
       schema: tokenBalanceSchema,
     });
   }

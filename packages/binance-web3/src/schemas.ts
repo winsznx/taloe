@@ -34,89 +34,110 @@ const optionalNumber = z.number().nullish().transform((value) => value ?? null);
 
 // ---------------------------------------------------------------------------
 // RWA data (Market API)
+//
+// DOC_VERIFIED and API_VERIFIED (shapes observed live, 2026-09-21) against
+// https://web3.binance.com/en/dev-docs/catalog/web3-wallet/api/rest-api/rwa-data
+// Raw evidence: internal/evidence/runtime/raw-*.json. The V1 guesses (flat
+// token list from /search, ticker-keyed profile/market) were WRONG; see
+// SPONSOR_FINDINGS F-009.
 // ---------------------------------------------------------------------------
+
+/** Numbers that arrive as strings ("18") or numbers. Null when absent/unparseable. */
+const numberish = z
+  .union([z.string(), z.number()])
+  .nullish()
+  .transform((value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  });
 
 export const rwaPlatformSchema = z.looseObject({
   platformId: optionalString,
-  platformName: optionalString,
+  tickerCount: numberish,
+  chainDistribution: z
+    .array(z.looseObject({ binanceChainId: optionalString, tokenCount: numberish }))
+    .nullish()
+    .transform((v) => v ?? []),
+  website: optionalString,
   logoUrl: optionalString,
 });
+export const rwaPlatformListSchema = z.array(rwaPlatformSchema);
 
-export const rwaPlatformListSchema = z.union([
-  z.array(rwaPlatformSchema),
-  z.looseObject({ platforms: z.array(rwaPlatformSchema) }).transform((v) => v.platforms),
-]);
-
-/**
- * Status block attached to RWA tokens and underlying market data.
- * Preserved raw as well as parsed — SessionMark needs the original strings for
- * evidence, and we must be able to tell a halt from an ordinary close.
- */
+/** Documented enums are kept as raw strings; interpretation lives in SessionMark. */
 export const rwaStatusInfoSchema = z.looseObject({
   openState: optionalBool,
   marketStatus: optionalString,
   reasonCode: optionalString,
   reasonMsg: optionalString,
-  nextOpenTime: optionalNumber,
-  nextCloseTime: optionalNumber,
+  nextOpenTime: numberish,
+  nextCloseTime: numberish,
 });
 
 export const rwaTokenSchema = z.looseObject({
+  binanceChainId: optionalString,
   platformId: optionalString,
   tokenContractAddress: optionalString,
   tokenSymbol: optionalString,
   tokenName: optionalString,
-  decimals: optionalNumber,
+  /** Documented as decimals; observed as a string ("18"). */
+  decimals: numberish,
   underlyingTicker: optionalString,
   underlyingName: optionalString,
-  /** Direction/meaning deliberately NOT interpreted here — see normalization adapters. */
+  /** Asset CLASS (1=Stock, 2=Pre-IPO, 3=ETF), not issuer family. */
+  assetType: numberish,
   tokenToShareRatio: numericString,
   tokenPrice: numericString,
   referencePrice: numericString,
   statusInfo: rwaStatusInfoSchema.nullish().transform((v) => v ?? null),
-  logoUrl: optionalString,
-  sector: optionalString,
 });
+export const rwaTokenListSchema = z.array(rwaTokenSchema);
 
-export const rwaTokenListSchema = z.union([
-  z.array(rwaTokenSchema),
-  z.looseObject({ tokens: z.array(rwaTokenSchema) }).transform((v) => v.tokens),
-  z.looseObject({ list: z.array(rwaTokenSchema) }).transform((v) => v.list),
-]);
-
-export const rwaSearchResultSchema = rwaTokenListSchema;
+/** /rwa/search groups by underlying: one record per ticker with assets[] across platforms/chains. */
+export const rwaSearchAssetSchema = z.looseObject({
+  platformId: optionalString,
+  binanceChainId: optionalString,
+  tokenContractAddress: optionalString,
+  tokenSymbol: optionalString,
+  assetType: numberish,
+});
+export const rwaSearchGroupSchema = z.looseObject({
+  ticker: optionalString,
+  companyName: optionalString,
+  assets: z.array(rwaSearchAssetSchema).nullish().transform((v) => v ?? []),
+});
+export const rwaSearchResultSchema = z.array(rwaSearchGroupSchema);
 
 export const rwaPriceEntrySchema = z.looseObject({
+  binanceChainId: optionalString,
   tokenContractAddress: optionalString,
+  platformId: optionalString,
   tokenPrice: numericString,
   referencePrice: numericString,
-  underlyingTicker: optionalString,
-  time: optionalNumber,
+  tokenPriceUpdatedAt: numberish,
 });
-
-export const rwaPriceListSchema = z.union([
-  z.array(rwaPriceEntrySchema),
-  z.looseObject({ prices: z.array(rwaPriceEntrySchema) }).transform((v) => v.prices),
-]);
+export const rwaPriceListSchema = z.array(rwaPriceEntrySchema);
 
 export const rwaUnderlyingProfileSchema = z.looseObject({
+  binanceChainId: optionalString,
+  tokenContractAddress: optionalString,
+  platformId: optionalString,
   underlyingTicker: optionalString,
-  companyName: optionalString,
-  sector: optionalString,
-  description: optionalString,
-  logoUrl: optionalString,
-  attestationUrl: optionalString,
+  underlyingFullName: optionalString,
+  assetType: numberish,
+  tokenToShareRatio: numericString,
 });
 
 export const rwaUnderlyingMarketSchema = z.looseObject({
-  underlyingTicker: optionalString,
-  referencePrice: numericString,
-  marketStatus: optionalString,
-  openState: optionalBool,
-  nextOpenTime: optionalNumber,
-  nextCloseTime: optionalNumber,
-  time: optionalNumber,
+  binanceChainId: optionalString,
+  tokenContractAddress: optionalString,
+  platformId: optionalString,
+  assetType: numberish,
   statusInfo: rwaStatusInfoSchema.nullish().transform((v) => v ?? null),
+  marketData: z
+    .looseObject({ referencePrice: numericString })
+    .nullish()
+    .transform((v) => v ?? null),
 });
 
 // ---------------------------------------------------------------------------
@@ -138,6 +159,7 @@ export const quoteRouteSchema = z.looseObject({
   fromTokenAmount: numericString,
   toTokenAmount: numericString,
   priceImpact: numericString,
+  priceImpactPercent: numericString,
   priceImpactPercentage: numericString,
   estimateGasFee: numericString,
   gas: numericString,
@@ -150,14 +172,13 @@ export const quoteRouteSchema = z.looseObject({
   actualSwapAmount: numericString,
 });
 
-export const quoteResponseSchema = z.looseObject({
-  quoteId: optionalString,
-  executionMode: executionModeSchema.nullish().transform((v) => v ?? null),
-  approveTarget: optionalString,
-  fromToken: z.looseObject({}).nullish().transform((v) => v ?? null),
-  toToken: z.looseObject({}).nullish().transform((v) => v ?? null),
-  routerResult: z.array(quoteRouteSchema).nullish().transform((v) => v ?? []),
-});
+/**
+ * Observed live 2026-09-21 (raw-quote-nvdab-5-*.json): `data` is a FLAT ARRAY of
+ * routes, each with its own quoteId/vendorName/executionMode and the fields
+ * below (plus fromToken/toToken/dexRouterList, preserved by the loose object).
+ * The V1 guess (`data.routerResult[]`) was wrong.
+ */
+export const quoteResponseSchema = z.array(quoteRouteSchema);
 
 /**
  * DOC_VERIFIED field list (2026-09-21):
@@ -334,19 +355,24 @@ export const tokenBasicInfoSchema = z.looseObject({
   logoUrl: optionalString,
 });
 
-export const tokenBalanceSchema = z.looseObject({
-  tokenAssets: z
-    .array(
-      z.looseObject({
-        tokenContractAddress: optionalString,
-        symbol: optionalString,
-        balance: numericString,
-        decimals: optionalNumber,
-      }),
-    )
-    .nullish()
-    .transform((v) => v ?? []),
-});
+/** Live shape: data is an array of pages, each `{ tokenAssets: [...] }`. */
+export const tokenBalanceSchema = z
+  .array(
+    z.looseObject({
+      tokenAssets: z
+        .array(
+          z.looseObject({
+            tokenContractAddress: optionalString,
+            symbol: optionalString,
+            balance: numericString,
+            rawBalance: numericString,
+          }),
+        )
+        .nullish()
+        .transform((v) => v ?? []),
+    }),
+  )
+  .transform((pages) => ({ tokenAssets: pages.flatMap((page) => page.tokenAssets) }));
 
 export type RwaToken = z.infer<typeof rwaTokenSchema>;
 export type RwaUnderlyingMarket = z.infer<typeof rwaUnderlyingMarketSchema>;

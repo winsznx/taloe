@@ -29,6 +29,7 @@ import type {
   CandidateQuoteResult,
   DiscoveryPort,
   Discovered,
+  UnsignedEvmTransaction,
 } from "../src/discovery-port";
 import { discoveryErr, discoveryOk } from "../src/discovery-port";
 
@@ -52,17 +53,17 @@ function underlying(ticker: string, companyName: string): Underlying {
 
 function wrapper(overrides: Partial<WrapperCandidate>): WrapperCandidate {
   return {
-    platformId: "xstock",
+    platformId: "bstock",
     tokenContractAddress: "0x2222222222222222222222222222222222222222",
     tokenSymbol: "TESTx",
     tokenName: "Fixture Test",
     decimals: 18,
     underlyingTicker: "TEST",
-    tokenToShareRatioRaw: null,
+    tokenToShareRatioRaw: "1",
     tokenPrice: "100",
     referencePrice: "100",
     statusInfo: null,
-    semanticConfidence: "PARTIAL",
+    semanticConfidence: "VERIFIED",
     provenance: ["fixture:synthetic"],
     ...overrides,
   };
@@ -131,10 +132,10 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
         underlyingTicker: "NVDA",
       }),
       wrapper({
-        platformId: "xstock",
+        platformId: "bstock",
         tokenContractAddress: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        tokenSymbol: "NVDAx",
-        tokenName: "xStock NVIDIA",
+        tokenSymbol: "NVDAB",
+        tokenName: "bStock NVIDIA",
         underlyingTicker: "NVDA",
       }),
     ],
@@ -203,10 +204,10 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
     underlying: underlying("AAPL", "Apple Inc."),
     candidates: [
       wrapper({
-        platformId: "xstock",
+        platformId: "bstock",
         tokenContractAddress: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-        tokenSymbol: "AAPLx",
-        tokenName: "xStock Apple",
+        tokenSymbol: "AAPLB",
+        tokenName: "bStock Apple",
         underlyingTicker: "AAPL",
       }),
     ],
@@ -222,7 +223,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // REFUSE — quote already past its estimated lifetime by the time it's evaluated.
   EXPIRED: () => ({
     underlying: underlying("EXPIRED", "Expired Quote Test Co."),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "EXPIRED" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "EXPIRED" })],
     marketContext: marketContext({}, "EXPIRED"),
     buildQuotes: (candidate, now) => ({
       routes: [
@@ -238,7 +239,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // REFUSE — SWAP candidate whose simulation is made to fail (see simulateRoute below).
   FAILSIM: () => ({
     underlying: underlying("FAILSIM", "Failed Simulation Test Co."),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "FAILSIM" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "FAILSIM" })],
     marketContext: marketContext({}, "FAILSIM"),
     buildQuotes: (candidate, now) => ({
       routes: [route(candidate, quote({ executionMode: "SWAP" }, now))],
@@ -249,7 +250,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // UNKNOWN — candidates exist but the market/reference context is unavailable.
   QQQ: () => ({
     underlying: underlying("QQQ", "Invesco QQQ Trust"),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "QQQ" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "QQQ", referencePrice: null })],
     marketContext: null,
     buildQuotes: (candidate, now) => ({
       routes: [route(candidate, quote({ executionMode: "SWAP" }, now))],
@@ -260,7 +261,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // NO_ACTION — alreadyHoldsTargetExposure short-circuits before quoting.
   HOLD: () => ({
     underlying: underlying("HOLD", "Already Held Test Co."),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "HOLD" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "HOLD" })],
     marketContext: marketContext({}, "HOLD"),
     buildQuotes: (candidate, now) => ({
       routes: [route(candidate, quote({ executionMode: "SWAP" }, now))],
@@ -272,7 +273,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // connecting the fixture wallet address that starts with 0xf00d.
   POOR: () => ({
     underlying: underlying("POOR", "Insufficient Balance Test Co."),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "POOR" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "POOR" })],
     marketContext: marketContext({}, "POOR"),
     buildQuotes: (candidate, now) => ({
       routes: [route(candidate, quote({ executionMode: "SWAP" }, now))],
@@ -283,7 +284,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
   // ACT — the resolved target of the MANUAL_REVIEW disambiguation demo above.
   METAPLT: () => ({
     underlying: underlying("METAPLT", "Meta Platforms, Inc."),
-    candidates: [wrapper({ platformId: "xstock", underlyingTicker: "METAPLT", tokenSymbol: "METAx" })],
+    candidates: [wrapper({ platformId: "bstock", underlyingTicker: "METAPLT", tokenSymbol: "METAB" })],
     marketContext: marketContext({}, "METAPLT"),
     buildQuotes: (candidate, now) => ({
       routes: [route(candidate, quote({ executionMode: "SWAP" }, now))],
@@ -297,7 +298,7 @@ const SCENARIOS: Readonly<Record<string, () => Scenario>> = {
     underlying: underlying("UNSUP", "Unsupported Mapping Test Co."),
     candidates: [
       wrapper({
-        platformId: "xstock",
+        platformId: "bstock",
         underlyingTicker: "UNSUP",
         tokenContractAddress: "",
         semanticConfidence: "UNSUPPORTED",
@@ -444,6 +445,36 @@ export class FixtureDiscoveryProvider implements DiscoveryPort {
     return discoveryOk({
       spendBalanceBaseUnits: "10000000000000000000000",
       gasBalanceWei: "1000000000000000000",
+    });
+  }
+
+  /** Fixture wallets start with no allowance; `approved` flips it after a fixture approval. */
+  private readonly allowances = new Map<string, bigint>();
+
+  async getAllowance(params: { owner: string; spender: string }): Promise<Discovered<string>> {
+    return discoveryOk((this.allowances.get(`${params.owner}:${params.spender}`.toLowerCase()) ?? 0n).toString());
+  }
+
+  /** Test/demo hook standing in for a mined approval transaction. */
+  grantFixtureAllowance(owner: string, spender: string, amountBaseUnits: string): void {
+    this.allowances.set(`${owner}:${spender}`.toLowerCase(), BigInt(amountBaseUnits));
+  }
+
+  async buildApprovalTransaction(params: {
+    tokenAddress: string;
+    walletAddress: string;
+  }): Promise<Discovered<UnsignedEvmTransaction>> {
+    return discoveryOk({ from: params.walletAddress, to: params.tokenAddress, value: "0", data: "0x095ea7b3fixture" });
+  }
+
+  async simulateTransaction(params: { now: Date }): Promise<Discovered<SimulationResult>> {
+    return discoveryOk({
+      status: "PASS",
+      failReason: null,
+      balanceChanges: [],
+      allowanceChanges: [],
+      observedAt: params.now.toISOString(),
+      provenance: ["fixture:synthetic"],
     });
   }
 }

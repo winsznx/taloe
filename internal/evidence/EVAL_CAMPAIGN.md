@@ -1,6 +1,8 @@
 # Evaluation Campaign
 
-**Status: NOT STARTED.** Blocked on API credentials.
+**Status: SUPERSEDED for the small-size price question, EXTENDED for capacity.**
+The small-size "Valid Decision Rate at $5/$25/$100" campaign ran (`internal/evidence/LIVE_VALIDATION_REPORT.md`): 3/15 differences from FIRST_RESULT, all inside 15 bps.
+The live thesis moved from small-size price to size-aware capacity; see `PRD_REVISION_1.md` and `internal/evidence/CAPACITY_VALIDATION_REPORT.md` for the campaign that replaces the "Order sizes" and "Headline" sections below.
 
 No number in this file may be published anywhere until it is measured. Empty cells
 stay empty.

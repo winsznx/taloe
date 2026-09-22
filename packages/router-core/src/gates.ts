@@ -22,6 +22,7 @@ import type {
 } from "@taloe/shared";
 import { deviationBps, div, fromBaseUnits, fromDecimalString, toDecimalString } from "@taloe/shared";
 
+import { lookupIssuer } from "./normalization";
 import type { RoutePolicy } from "./policy";
 
 export interface GateContext {
@@ -46,6 +47,8 @@ export interface GateContext {
   /** Execution modes this client can actually drive end to end. */
   readonly supportedExecutionModes: readonly ExecutionMode[];
   readonly now: Date;
+  /** False for ablations that remove reference context: the wrapper's own reference price is then unavailable too. */
+  readonly allowWrapperReference?: boolean;
 }
 
 export interface GateOutcome {
@@ -290,23 +293,31 @@ export function runGates(context: GateContext): GateOutcome {
  * reference is stale, or when the amounts cannot be parsed. A null deviation
  * disables the user's constraint check, which the engine escalates to UNKNOWN.
  */
-function computeReferenceDeviation(context: GateContext): number | null {
-  const reference = context.marketContext?.referencePrice;
+export function computeReferenceDeviation(context: GateContext): number | null {
+  // The reference is a per-SHARE price. A token can represent more or fewer
+  // than one share (observed live: CRWDon = 4.0 shares), so the executed
+  // per-TOKEN price must be converted to per-share first. If the issuer's ratio
+  // semantics are UNKNOWN, or the ratio is missing, the deviation is not
+  // computable and the user's constraint cannot be enforced (-> UNKNOWN).
+  const issuer = lookupIssuer(context.route.wrapper.platformId);
+  const ratioRaw = context.route.wrapper.tokenToShareRatioRaw;
+  if (!issuer || issuer.semantics === "UNKNOWN" || issuer.interpretation === null || ratioRaw === null) return null;
+  if (issuer.interpretation.direction !== "SHARES_PER_TOKEN") return null;
+
+  const reference =
+    context.marketContext?.referencePrice ??
+    (context.allowWrapperReference === false ? null : context.route.wrapper.referencePrice);
   if (!reference) return null;
-  if (
-    context.marketContext?.referenceAgeMs !== null &&
-    context.marketContext !== null &&
-    context.marketContext.referenceAgeMs !== null &&
-    context.marketContext.referenceAgeMs > context.policy.referenceStaleAfterMs
-  ) {
-    return null;
-  }
+  const ageMs = context.marketContext?.referenceAgeMs ?? null;
+  if (ageMs !== null && ageMs > context.policy.referenceStaleAfterMs) return null;
 
   const unitPrice = effectiveUnitPrice(context.route, context.spendTokenDecimals);
   if (unitPrice === null) return null;
-
   try {
-    return deviationBps(fromDecimalString(unitPrice), fromDecimalString(reference));
+    const ratio = fromDecimalString(ratioRaw);
+    if (ratio <= 0n) return null;
+    const perShare = div(fromDecimalString(unitPrice), ratio);
+    return deviationBps(perShare, fromDecimalString(reference));
   } catch {
     return null;
   }

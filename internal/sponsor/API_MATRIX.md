@@ -91,3 +91,22 @@ HTTP 429 carries `Retry-After` in seconds. The client honours it.
 **Budget note:** at 5 RPS per endpoint, quoting N wrappers means N sequential or
 lightly-parallel calls to `/quote`. With a 30-second quote lifetime, wrapper count
 directly consumes quote freshness. Worth measuring early.
+
+---
+
+## Live corrections (2026-09-21, observed)
+
+| Endpoint | Correction |
+|---|---|
+| `GET /rwa/platforms` | Returns `{platformId, tickerCount, chainDistribution[], website, logoUrl}`; only `ondo`, `bstock`. |
+| `GET /rwa/search` | Params `keyword` (+ optional `platformId`). Returns underlying-grouped `[{ticker, companyName, assets[]}]`; fuzzy. |
+| `GET /rwa/tokens` | Full records; **incomplete** vs platform counts. `decimals` is a string. |
+| `GET /rwa/price` | `tokenContractAddresses` comma list (max 100). Fields include `tokenPriceUpdatedAt`. |
+| `GET /rwa/underlying-profile`, `/underlying-market` | Keyed by `binanceChainId` + `tokenContractAddress` (not ticker). Ratio is on the profile. `marketStatus` only populated for Ondo. |
+| `GET /aggregator/quote` | `data` is a flat array of routes; `priceImpactPercent` (not `...Percentage`); Ondo needs `userWalletAddress`; min order $5 (`40375`). |
+| `GET /aggregator/swap` | Requires `slippagePercent` or `autoSlippage`. |
+| `POST /market/token/basic-info` | **Parameters in the query string**, body ignored. |
+| `POST /balance/token-balances-by-address` | Was guessed as `/wallet/all-token-balances-by-address` (404). Body `{address, tokenContractAddresses:[{binanceChainId, tokenContractAddress}]}`; native = `0xeeee…eeee` in the response. |
+| `POST /pre-transaction/simulate` | Verified live: request `evmTx`, response as documented. |
+| All | Send `X-OC-NONCE` (per-request UUID) to avoid replay collisions. |
+

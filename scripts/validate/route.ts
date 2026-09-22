@@ -54,6 +54,9 @@ function recording(port: DiscoveryPort, log: Recorded[]): DiscoveryPort {
     getQuotesForCandidate: wrap("getQuotesForCandidate", port.getQuotesForCandidate.bind(port)),
     simulateRoute: wrap("simulateRoute", port.simulateRoute.bind(port)),
     getWalletBalances: wrap("getWalletBalances", port.getWalletBalances.bind(port)),
+    getAllowance: wrap("getAllowance", port.getAllowance.bind(port)),
+    buildApprovalTransaction: wrap("buildApprovalTransaction", port.buildApprovalTransaction.bind(port)),
+    simulateTransaction: wrap("simulateTransaction", port.simulateTransaction.bind(port)),
   };
 }
 

@@ -359,3 +359,37 @@ So the product and `pnpm validate:route` run the same code. It takes a minimal s
 **Date:** 2026-09-21
 
 `/quote-and-swap` would remove a round trip but skips per-route comparison and only reaches LiquidMesh. No advantage is claimed until measured (F-008).
+
+---
+
+## Live validation
+
+## D-026 — Ondo promoted to EMPIRICALLY_OBSERVED, bStock to DOCUMENTED; each on its own evidence
+2026-09-21. Direction (shares-per-token) is Binance's documented definition; Ondo is additionally confirmed by executable prices on ratio 4.0 and 10.03 tokens. bStock ratios are all
+within 0.4% of 1, so prices cannot discriminate: it stays DOCUMENTED and carries a demotion condition. Ondo issuer docs were not consulted (recorded gap).
+
+## D-027 — The deviation gate compares per-SHARE price to a per-share reference
+A per-token comparison would have refused CRWDon at +29,986 bps. When the issuer's semantics are UNKNOWN or the ratio is missing, deviation is uncomputable and the outcome is UNKNOWN (never a silent pass).
+The wrapper's own `referencePrice` is used when no underlying context exists; the reference ablations also remove it.
+
+## D-028 — Exact-ticker search wins; only non-exact queries are ambiguous
+Live search is fuzzy (QQQ -> TQQQ, SQQQ, PSQ). An exact ticker is not ambiguous.
+
+## D-029 — Explicit 1% slippage when building a swap for simulation; per-request nonce on every call
+`/swap` requires a slippage bound; an explicit reviewable number is used instead of vendor autoSlippage. Provisional. A unique nonce prevents replay collisions.
+
+## D-030 — `priceImpactPercent` is not trusted as a gate input
+Kept as recorded data. The reference-deviation gate is the authority (F-016).
+
+
+## D-031 — Market decision and execution readiness are two pipelines, not one
+Simulation moved out of `evaluateRoutes`/`runRouteDiscovery` entirely and into `prepareExecution` (`packages/router-core/src/readiness.ts`), which runs once, only on the selected route (and, on a non-allowance failure, the next candidate). The engine's own hard simulation gate (`gates.ts`) is unchanged and is reused by readiness for the final swap check, so there is exactly one place that decides "PASS is required," not two competing ones.
+
+## D-032 — Allowance is read from the chain, never inferred from a failed simulation
+A swap-simulation revert text is vendor- and token-specific and cannot be trusted to mean "no allowance" specifically. `readErc20Allowance` (`chain-reader.ts`) performs a raw `eth_call` and is the only source of truth for allowance state; an unreadable allowance stops the whole readiness attempt (every candidate shares the same wallet) rather than being treated as zero.
+
+## D-033 — An approval requests exactly the trade amount, never unlimited
+`buildApprovalTransaction` is always called with `required = route.quote.fromTokenAmount`, not `MaxUint256`. This is a product safety choice: an unlimited approval outliving the trade is a decision for the user to make explicitly, not a default Taloe sets for them.
+
+## D-034 — SafeExecutionCapacity is evidence-only until the campaign says otherwise
+No closed-form liquidity curve is invented. Capacity is a bracket between the largest quoted-safe ticket and the smallest quoted-breach, derived by `deriveSafeCapacity`. The product only surfaces it (`/route`'s capacity panel) above a $500 ticket, and only from quotes taken in that same request — never from the campaign artifacts, which age immediately.

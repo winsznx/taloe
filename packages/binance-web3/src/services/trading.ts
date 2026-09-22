@@ -94,16 +94,14 @@ export class TradingService {
     if (!result.ok) return result;
 
     const observedAt = new Date();
-    const envelopeMode = result.value.executionMode;
-    const envelopeQuoteId = result.value.quoteId;
 
     const quotes: Quote[] = [];
-    for (const route of result.value.routerResult) {
+    for (const route of result.value) {
       const quote = toQuote(route, {
         observedAt,
-        fallbackQuoteId: envelopeQuoteId,
-        fallbackExecutionMode: envelopeMode,
-        fallbackApproveTarget: result.value.approveTarget,
+        fallbackQuoteId: null,
+        fallbackExecutionMode: null,
+        fallbackApproveTarget: null,
       });
       // A route we cannot identify or whose settlement method we cannot read is
       // dropped here rather than defaulted: guessing SWAP for an RFQ route
@@ -230,7 +228,7 @@ export function toQuote(route: QuoteRoute, context: QuoteContext): Quote | null 
     toTokenAmount: route.toTokenAmount,
     tradeFeeUsd: route.tradeFee,
     estimatedGas: route.estimateGasFee ?? route.gas,
-    priceImpactPercent: route.priceImpactPercentage ?? route.priceImpact,
+    priceImpactPercent: route.priceImpactPercent ?? route.priceImpactPercentage ?? route.priceImpact,
     routePath: route.routePath,
     approveTarget: route.approveTarget ?? context.fallbackApproveTarget,
     quoteObservedAt: context.observedAt.toISOString(),

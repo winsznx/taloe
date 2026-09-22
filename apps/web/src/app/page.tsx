@@ -17,8 +17,9 @@ export default function HomePage(): ReactNode {
   return (
     <>
       <h1 className="lede">
-        Choose a company and an amount. Taloe finds the best valid way to buy it on BNB
-        Smart Chain, or tells you not to trade.
+        Choose a company, an amount, and how far the price can move. Taloe finds a
+        wrapper that can execute it within that limit on BNB Smart Chain, or tells you
+        not to trade.
       </h1>
 
       <section className="card" aria-labelledby="intent-heading">

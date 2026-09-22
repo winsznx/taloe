@@ -163,7 +163,8 @@ describe("WrapRoute — outcomes", () => {
     // The route passed every gate we could run — but the user's hard deviation
     // limit was never actually tested, so claiming ACT would claim an
     // enforcement that did not happen.
-    const decision = evaluate([makeRoute({ routeId: "noref", now: NOW })], {
+    // Neither the underlying context nor the wrapper itself carries a reference.
+    const decision = evaluate([makeRoute({ routeId: "noref", now: NOW, wrapper: { referencePrice: null } })], {
       marketContext: makeMarketContext({ referencePrice: null }),
     });
     expect(decision.outcome).toBe("UNKNOWN");
@@ -266,10 +267,10 @@ describe("WrapRoute — comparison", () => {
         wrapper: { platformId: "ondo", tokenContractAddress: "0xaaaa".padEnd(42, "a") },
       }),
       makeRoute({
-        routeId: "xstock",
+        routeId: "bstock",
         now: NOW,
         toTokenAmount: "9000000000000000000",
-        wrapper: { platformId: "xstock", tokenContractAddress: "0xbbbb".padEnd(42, "b") },
+        wrapper: { platformId: "bstock", tokenContractAddress: "0xbbbb".padEnd(42, "b") },
       }),
     ]);
     expect(decision.outcome).toBe("ACT");
@@ -283,11 +284,11 @@ describe("WrapRoute — ablations", () => {
     const decision = evaluate(
       [
         makeRoute({ routeId: "ondo", now: NOW, wrapper: { platformId: "ondo" } }),
-        makeRoute({ routeId: "xstock", now: NOW, wrapper: { platformId: "xstock" } }),
+        makeRoute({ routeId: "bstock", now: NOW, wrapper: { platformId: "bstock" } }),
       ],
-      { mode: { variant: "FIXED_ISSUER", fixedPlatformId: "xstock" } },
+      { mode: { variant: "FIXED_ISSUER", fixedPlatformId: "bstock" } },
     );
-    expect(decision.selected?.route.routeId).toBe("xstock");
+    expect(decision.selected?.route.routeId).toBe("bstock");
   });
 
   it("NO_MARKET_STATUS drops the reference and can no longer confirm the constraint", () => {
@@ -318,6 +319,44 @@ describe("WrapRoute — ablations", () => {
   });
 });
 
+describe("WrapRoute — per-share deviation (live-observed ratio != 1)", () => {
+  it("does not read a 4-shares-per-token wrapper as a 300% deviation", () => {
+    // CRWDon-like: 500 USDT buys 1.25 tokens = 5 shares = 100 USDT/share, which
+    // matches the 100/share reference. Comparing the per-TOKEN price (400) to
+    // the per-share reference would have refused this at +30,000 bps.
+    const decision = evaluate([
+      makeRoute({
+        routeId: "four-shares",
+        now: NOW,
+        toTokenAmount: "1250000000000000000",
+        wrapper: { platformId: "ondo", tokenToShareRatioRaw: "4" },
+      }),
+    ], { simulations: new Map([["four-shares", "PASS"]]) });
+    expect(decision.outcome).toBe("ACT");
+    expect(decision.selected?.referenceDeviationBps).toBe(0);
+  });
+
+  it("still refuses a genuinely mispriced multi-share wrapper", () => {
+    const decision = evaluate([
+      makeRoute({
+        routeId: "mispriced",
+        now: NOW,
+        toTokenAmount: "1000000000000000000", // 500/token / 4 shares = 125/share vs 100
+        wrapper: { platformId: "ondo", tokenToShareRatioRaw: "4" },
+      }),
+    ]);
+    expect(decision.rejected[0]?.reasons).toContain("EXCEEDS_USER_DEVIATION");
+  });
+
+  it("cannot enforce the limit when the issuer's ratio semantics are UNKNOWN", () => {
+    const decision = evaluate([
+      makeRoute({ routeId: "xs", now: NOW, wrapper: { platformId: "xstock" } }),
+    ]);
+    expect(decision.outcome).toBe("UNKNOWN");
+    expect(decision.decisionReasons).toContain("REFERENCE_CONTEXT_UNAVAILABLE");
+  });
+});
+
 describe("WrapRoute — NO_ACTION", () => {
   it("returns NO_ACTION without evaluating any route when holdings already meet the intent", () => {
     const decision = evaluate([makeRoute({ routeId: "a", now: NOW })], {
@@ -339,7 +378,7 @@ describe("WrapRoute — correction 3: closed market is context, not a global all
     // xStock trades via AMM per the docs and is not documented as subject to
     // market-hours restrictions. A closed session must not block it.
     const decision = evaluate(
-      [makeRoute({ routeId: "xstock", now: NOW, wrapper: { platformId: "xstock" } })],
+      [makeRoute({ routeId: "bstock", now: NOW, wrapper: { platformId: "bstock" } })],
       { marketContext: makeMarketContext({ sessionState: "CLOSED", isHalted: false }) },
     );
     expect(decision.outcome).toBe("ACT");
@@ -354,7 +393,7 @@ describe("WrapRoute — correction 3: closed market is context, not a global all
     // session state produces a DIFFERENT outcome per issuer, for a reason a
     // price-only comparison could never produce.
     const decision = evaluate(
-      [makeRoute({ routeId: "xstock", now: NOW, wrapper: { platformId: "xstock" } })],
+      [makeRoute({ routeId: "bstock", now: NOW, wrapper: { platformId: "bstock" } })],
       {
         marketContext: makeMarketContext({ sessionState: "CLOSED", isHalted: false }),
         preRejectedCandidates: [
@@ -369,7 +408,7 @@ describe("WrapRoute — correction 3: closed market is context, not a global all
       },
     );
     expect(decision.outcome).toBe("ACT");
-    expect(decision.selected?.route.wrapper.platformId).toBe("xstock");
+    expect(decision.selected?.route.wrapper.platformId).toBe("bstock");
     const ondoRejection = decision.rejected.find((r) => r.platformId === "ondo");
     expect(ondoRejection?.reasons).toContain("OUTSIDE_TRADING_HOURS");
     expect(ondoRejection?.stage).toBe("PRE_QUOTE");
@@ -408,7 +447,7 @@ describe("WrapRoute — correction 3: closed market is context, not a global all
   });
 
   it("returns UNKNOWN when required market context is unavailable, per the existing reference rule", () => {
-    const decision = evaluate([makeRoute({ routeId: "a", now: NOW })], {
+    const decision = evaluate([makeRoute({ routeId: "a", now: NOW, wrapper: { referencePrice: null } })], {
       marketContext: null,
     });
     expect(decision.outcome).toBe("UNKNOWN");
