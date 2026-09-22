@@ -11,3 +11,4 @@ export * from "./chain-reader";
 export * from "./readiness";
 export * from "./capacity-probe";
 export * from "./size-equivalence";
+export * from "./route-equity-intent";
