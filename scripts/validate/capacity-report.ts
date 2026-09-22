@@ -20,6 +20,19 @@ const RT = resolve(REPO_ROOT, "internal/evidence/runtime");
 const EQUIVALENCE_BPS = 25;
 const SMALL_TICKET_MAX_USD = 100;
 
+type AvailabilityStatus =
+  | "QUOTE_AVAILABLE"
+  | "QUOTE_UNAVAILABLE"
+  | "BUILDABLE"
+  | "BUILD_FAILED"
+  | "PAUSED"
+  | "MIN_SIZE_REJECTED"
+  | "EXPIRED"
+  | "OTHER_SPONSOR_ERROR";
+
+/** Statuses that mean the wrapper actually gave the user something usable at that ticket. */
+const USABLE_STATUSES = new Set<AvailabilityStatus>(["QUOTE_AVAILABLE", "BUILDABLE"]);
+
 interface Obs extends CapacityObservation {
   perShareUsdt: number | null;
   vendor: string | null;
@@ -28,8 +41,10 @@ interface Obs extends CapacityObservation {
   latencyMs: number;
   sponsorPriceImpactPercent: string | null;
   estimatedGas?: string | null;
+  /** Absent on artifacts from before availability classification was added; treated as QUOTE_AVAILABLE/QUOTE_UNAVAILABLE by `quoted`. */
+  status?: AvailabilityStatus;
 }
-interface WrapperRow { platformId: string; symbol: string; observations: Obs[] }
+interface WrapperRow { platformId: string; symbol: string; observations: Obs[]; openState?: boolean | null; reasonCode?: string | null }
 interface TickerRow { ticker: string; wrappers: WrapperRow[]; error?: string }
 
 const median = (xs: number[]) => (xs.length === 0 ? null : [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!);
@@ -203,6 +218,104 @@ function main(): void {
     .filter((o) => o.sponsorPriceImpactPercent !== null && o.deviationBps !== null && Math.abs(o.deviationBps) > 150)
     .slice(0, 8)
     .map((o) => ({ ticketUsd: o.ticketUsd, sponsorPriceImpactPercent: o.sponsorPriceImpactPercent, recomputedDeviationBps: o.deviationBps }));
+
+  // ---- availability, raw evidence (no composite score) ----------------------
+  const statusOf = (o: Obs): AvailabilityStatus => o.status ?? (o.quoted ? "QUOTE_AVAILABLE" : "QUOTE_UNAVAILABLE");
+  out.availability = {
+    byStatus: (["ondo", "bstock"] as const).reduce<Record<string, Record<string, number>>>((m, platform) => {
+      const tally: Record<string, number> = {};
+      for (const u of perUnderlying) {
+        const w = u.wrappers.find((x) => x.platformId === platform);
+        if (!w) continue;
+        for (const o of w.observations) tally[statusOf(o)] = (tally[statusOf(o)] ?? 0) + 1;
+      }
+      m[platform] = tally;
+      return m;
+    }, {}),
+    pausedWrappers: perUnderlying.flatMap((u) => u.wrappers.filter((w) => w.openState === false).map((w) => ({ ticker: u.ticker, symbol: w.symbol, reasonCode: w.reasonCode ?? null }))),
+  };
+
+  // ---- routing direction matrix ----------------------------------------------
+  // One label per underlying per threshold, from the SAME capacity brackets used above —
+  // never a separate ad hoc comparison, so this matrix and byThreshold cannot disagree.
+  const platformOf = (u: (typeof perUnderlying)[number], side: "a" | "b"): string => u.wrappers[side === "a" ? 0 : 1].platformId;
+  out.routingDirectionMatrix = CAPACITY_THRESHOLDS_BPS.map((t) => {
+    const labels = perUnderlying.map((u) => {
+      const cell = u.byThreshold.find((x) => x.thresholdBps === t)!;
+      const bothRefuse = cell.a.status === "BELOW_SMALLEST_TESTED" && cell.b.status === "BELOW_SMALLEST_TESTED";
+      const label =
+        bothRefuse
+          ? "ALL_REFUSE"
+          : cell.cmp === "INCOMPARABLE"
+            ? "UNKNOWN"
+            : cell.cmp === "NO_DIFFERENCE"
+              ? "EITHER"
+              : cell.cmp === "A_LARGER"
+                ? platformOf(u, "a") === "ondo" ? "ONDO_BETTER" : "BSTOCK_BETTER"
+                : platformOf(u, "b") === "ondo" ? "ONDO_BETTER" : "BSTOCK_BETTER";
+      return { ticker: u.ticker, label };
+    });
+    const counts = labels.reduce<Record<string, number>>((m, l) => { m[l.label] = (m[l.label] ?? 0) + 1; return m; }, {});
+    return { thresholdBps: t, counts, labels };
+  });
+
+  // ---- ALWAYS_USE_BSTOCK baseline --------------------------------------------
+  // "Meaningfully better" per the campaign brief: better executable exposure/capacity,
+  // a successful route where bStock failed, or a correct refusal bStock would not have made.
+  // Tiny price noise (inside EQUIVALENCE_BPS) never counts.
+  out.alwaysUseBstockBaseline = CAPACITY_THRESHOLDS_BPS.map((t) => {
+    const rows = perUnderlying.map((u) => {
+      const bstock = u.caps.bstock?.[t];
+      const ondo = u.caps.ondo?.[t];
+      const cell = u.byThreshold.find((x) => x.thresholdBps === t)!;
+      if (!bstock || !ondo) return { ticker: u.ticker, meaningfullyBetter: false, reason: "MISSING_WRAPPER" as const };
+      // bStock itself has no usable evidence at all (every point failed): Taloe using Ondo instead is trivially better.
+      if (bstock.status === "UNKNOWN") return { ticker: u.ticker, meaningfullyBetter: ondo.status !== "UNKNOWN", reason: "BSTOCK_UNAVAILABLE" as const };
+      const taloeWrapper = cell.taloeWrapper ?? "bstock";
+      if (taloeWrapper === "bstock") return { ticker: u.ticker, meaningfullyBetter: false, reason: "SAME_CHOICE" as const };
+      // Taloe picked Ondo over bStock: only meaningful if the brackets are actually disjoint (compareCapacity already filters noise).
+      return { ticker: u.ticker, meaningfullyBetter: cell.cmp === "A_LARGER" || cell.cmp === "B_LARGER", reason: "ONDO_MATERIALLY_LARGER_CAPACITY" as const };
+    });
+    const better = rows.filter((r) => r.meaningfullyBetter);
+    return { thresholdBps: t, evaluated: rows.length, taloeMeaningfullyBetter: better.length, cases: better };
+  });
+
+  // ---- bidirectional evidence (raw, both directions, negatives preserved) ---
+  type Direction = "ONDO_BAD_BSTOCK_GOOD" | "BSTOCK_BAD_ONDO_GOOD";
+  const bidirectional: { ticker: string; ticketUsd: number; kind: string; direction: Direction; detail: string }[] = [];
+  for (const u of perUnderlying) {
+    const [wa, wb] = u.wrappers;
+    const aIsOndo = wa.platformId === "ondo";
+    const ondoW = aIsOndo ? wa : wb;
+    const bstockW = aIsOndo ? wb : wa;
+    const tickets = new Set([...ondoW.observations.map((o) => o.ticketUsd), ...bstockW.observations.map((o) => o.ticketUsd)]);
+    for (const ticket of tickets) {
+      const oo = ondoW.observations.find((o) => o.ticketUsd === ticket);
+      const ob = bstockW.observations.find((o) => o.ticketUsd === ticket);
+      if (!oo || !ob) continue;
+      const oUsable = USABLE_STATUSES.has(statusOf(oo));
+      const bUsable = USABLE_STATUSES.has(statusOf(ob));
+      if (oUsable && !bUsable) {
+        bidirectional.push({ ticker: u.ticker, ticketUsd: ticket, kind: "AVAILABILITY", direction: "BSTOCK_BAD_ONDO_GOOD", detail: `bstock=${statusOf(ob)} ondo=${statusOf(oo)}` });
+      } else if (bUsable && !oUsable) {
+        bidirectional.push({ ticker: u.ticker, ticketUsd: ticket, kind: "AVAILABILITY", direction: "ONDO_BAD_BSTOCK_GOOD", detail: `ondo=${statusOf(oo)} bstock=${statusOf(ob)}` });
+      } else if (oUsable && bUsable && oo.deviationBps !== null && ob.deviationBps !== null) {
+        const oBreach = Math.abs(oo.deviationBps) > 150;
+        const bBreach = Math.abs(ob.deviationBps) > 150;
+        if (bBreach && !oBreach) {
+          bidirectional.push({ ticker: u.ticker, ticketUsd: ticket, kind: "DEVIATION", direction: "BSTOCK_BAD_ONDO_GOOD", detail: `bstock ${ob.deviationBps} bps vs ondo ${oo.deviationBps} bps` });
+        } else if (oBreach && !bBreach) {
+          bidirectional.push({ ticker: u.ticker, ticketUsd: ticket, kind: "DEVIATION", direction: "ONDO_BAD_BSTOCK_GOOD", detail: `ondo ${oo.deviationBps} bps vs bstock ${ob.deviationBps} bps` });
+        }
+      }
+    }
+  }
+  out.bidirectionalEvidence = {
+    ondoBad: bidirectional.filter((b) => b.direction === "ONDO_BAD_BSTOCK_GOOD"),
+    bstockBad: bidirectional.filter((b) => b.direction === "BSTOCK_BAD_ONDO_GOOD"),
+    bstockBadCount: bidirectional.filter((b) => b.direction === "BSTOCK_BAD_ONDO_GOOD").length,
+    ondoBadCount: bidirectional.filter((b) => b.direction === "ONDO_BAD_BSTOCK_GOOD").length,
+  };
 
   out.perUnderlying = perUnderlying.map((u) => ({ ticker: u.ticker, first: u.first, caps: u.caps }));
   const target = resolve(RT, `capacity-report-${artifact.session}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);

@@ -393,3 +393,12 @@ A swap-simulation revert text is vendor- and token-specific and cannot be truste
 
 ## D-034 — SafeExecutionCapacity is evidence-only until the campaign says otherwise
 No closed-form liquidity curve is invented. Capacity is a bracket between the largest quoted-safe ticket and the smallest quoted-breach, derived by `deriveSafeCapacity`. The product only surfaces it (`/route`'s capacity panel) above a $500 ticket, and only from quotes taken in that same request — never from the campaign artifacts, which age immediately.
+
+## D-035 — Availability is recorded as raw status, never folded into a composite score
+`capacity.ts` now classifies every observation into one of `QUOTE_AVAILABLE / QUOTE_UNAVAILABLE / BUILDABLE / BUILD_FAILED / PAUSED / MIN_SIZE_REJECTED / EXPIRED / OTHER_SPONSOR_ERROR`. `capacity-report.ts` tallies these but does not combine them with price into a single ranking number — a 2 bps cheaper route that is unavailable is reported as unavailable, not as the winner, per the campaign brief.
+
+## D-036 — Buildability is measured with a real, unsigned `buildSwap` call, not assumed from the quote
+One extra call per wrapper (at its final surviving quoted point, not every anchor) confirms the quote is actually buildable rather than treating "quote succeeded" as equivalent to "route is real." Kept to one call per wrapper to bound the campaign's request budget.
+
+## D-037 — ALWAYS_USE_BSTOCK is promoted to a first-class baseline, computed from the same capacity brackets as everything else
+`alwaysUseBstockBaseline` in `capacity-report.ts` reuses `byThreshold`'s `compareCapacity` result rather than a separate ad hoc comparison, so the baseline and the routing-direction matrix cannot silently disagree with each other.
