@@ -190,3 +190,34 @@ describe("resumeAfterApproval — never reuses a stale quote", () => {
   });
 });
 
+
+describe("resumeAfterApproval — the pre-approval quoteId is never sent to build or simulate", () => {
+  it("passes only the freshly re-quoted route into simulateRoute, never the stale one", async () => {
+    const port = new FixtureDiscoveryProvider();
+    const decision = await decide(port, FIXTURE_SCENARIOS.ACT_TWO_WRAPPERS);
+    const stale = decision.selected!.route;
+    port.grantFixtureAllowance(WALLET, SPENDER, stale.quote.fromTokenAmount);
+
+    const originalQuote = port.getQuotesForCandidate.bind(port);
+    port.getQuotesForCandidate = async (candidate, params) => {
+      const result = await originalQuote(candidate, params);
+      if (!result.ok) return result;
+      return {
+        ok: true,
+        value: { ...result.value, routes: result.value.routes.map((r) => ({ ...r, quote: { ...r.quote, quoteId: "fresh-quote-2" } })) },
+      };
+    };
+
+    const simulateCalls: string[] = [];
+    const originalSimulate = port.simulateRoute.bind(port);
+    port.simulateRoute = async (route, params) => {
+      simulateCalls.push(route.quote.quoteId);
+      return originalSimulate(route, params);
+    };
+
+    await resumeAfterApproval({ ...context(port), spender: SPENDER, requiredBaseUnits: stale.quote.fromTokenAmount }, decision, stale);
+
+    expect(simulateCalls).toEqual(["fresh-quote-2"]);
+    expect(simulateCalls).not.toContain(stale.quote.quoteId);
+  });
+});
