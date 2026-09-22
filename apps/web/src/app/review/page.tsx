@@ -9,6 +9,7 @@ import { getServerConfig } from "@/server/config";
 import type { IntentQuery } from "@/lib/intent-query";
 import { intentQueryString, parseIntentQuery } from "@/lib/intent-query";
 import { defaultScenarioFor, FIXTURE_EXECUTION_SCENARIOS } from "@/lib/fixture-execution-timeline";
+import { WalletExecutionPanel } from "@/components/WalletExecutionPanel";
 import type { FixtureExecutionScenario } from "@/lib/fixture-execution-timeline";
 
 export default async function ReviewPage({
@@ -178,6 +179,20 @@ export default async function ReviewPage({
           </p>
         )}
       </div>
+
+      {config.dataMode === "live" ? (
+        <WalletExecutionPanel
+          requiredChainId={config.binanceChainId}
+          rpcUrl={config.bscRpcUrl}
+          spendTokenAddress={decision.intent.spendTokenAddress}
+          requiredSpendBaseUnits={decision.intent.spendAmountBaseUnits}
+          q={intent.q}
+          amount={intent.amount}
+          maxDeviationBps={intent.maxDeviationBps}
+          routeId={route.routeId}
+          knownApproveTarget={route.quote.approveTarget}
+        />
+      ) : null}
 
       {!quoteUsable ? (
         <div className="card" style={{ marginTop: "var(--space-5)" }} role="alert">

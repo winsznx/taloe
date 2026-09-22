@@ -12,7 +12,7 @@ import { getPublicConfig } from "@/server/config";
  * away, because the main path must work without the user tuning anything.
  */
 export default function HomePage(): ReactNode {
-  const { defaultMaxDeviationBps } = getPublicConfig();
+  const { defaultMaxDeviationBps, dataMode } = getPublicConfig();
 
   return (
     <>
@@ -83,20 +83,26 @@ export default function HomePage(): ReactNode {
             </label>
           </details>
 
-          <details className="disclosure">
-            <summary>Wallet</summary>
-            <div style={{ marginTop: "var(--space-4)" }}>
-              <p className="field-hint" style={{ marginBottom: "var(--space-3)" }}>
-                A live wallet adapter is not wired up yet. This connects a fixed demo address
-                so balance-aware states (insufficient funds, simulation, execution) can be
-                exercised honestly in fixture mode.
-              </p>
-              <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                <input type="checkbox" name="wallet" value="0x1111111111111111111111111111111111111111" />
-                <span>Connect demo wallet</span>
-              </label>
-            </div>
-          </details>
+          {dataMode === "fixture" ? (
+            <details className="disclosure">
+              <summary>Wallet</summary>
+              <div style={{ marginTop: "var(--space-4)" }}>
+                <p className="field-hint" style={{ marginBottom: "var(--space-3)" }}>
+                  Sample data mode: this connects a fixed demo address so balance-aware states
+                  (insufficient funds, simulation, execution) can be exercised honestly without a
+                  real wallet.
+                </p>
+                <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <input type="checkbox" name="wallet" value="0x1111111111111111111111111111111111111111" />
+                  <span>Connect demo wallet</span>
+                </label>
+              </div>
+            </details>
+          ) : (
+            <p className="field-hint">
+              You&apos;ll connect your own wallet on the next step, once Taloe has found a route.
+            </p>
+          )}
 
           <button className="button" type="submit" style={{ marginTop: "var(--space-5)" }}>
             Find my route

@@ -154,3 +154,23 @@ function hasSufficientGas(wallet: WalletFacts): boolean {
     return false;
   }
 }
+
+/** Plain-language copy per state, same principle as `STATE_COPY` in states.ts. */
+export const WALLET_READINESS_COPY: Readonly<Record<WalletReadinessState, string>> = {
+  WALLET_DISCONNECTED: "Connect a wallet to continue",
+  WRONG_CHAIN: "Switch your wallet to BNB Smart Chain",
+  BALANCE_INSUFFICIENT: "Your wallet does not hold enough USDT for this amount",
+  GAS_INSUFFICIENT: "Your wallet does not hold enough BNB for network fees",
+  APPROVAL_REQUIRED: "One-time approval needed before this trade",
+  APPROVAL_READY: "Waiting for you to approve in your wallet",
+  APPROVAL_PENDING: "Approval sent — waiting for the network to confirm",
+  APPROVAL_CONFIRMED: "Approval confirmed — refreshing your price",
+  REQUOTE_REQUIRED: "Your price needs to be refreshed before continuing",
+  READY_FOR_SIMULATION: "Checking this route against your wallet",
+  SIMULATION_FAILED: "This route did not pass a test run and was not offered",
+  READY_TO_SIGN: "Ready — this was tested against the chain and passed",
+  PENDING_EXECUTION: "Sending your transaction to the network",
+  PENDING_VERIFICATION: "Confirmed by the network — Taloe is verifying the result",
+  VERIFIED_SUCCESS: "Done and independently verified",
+  VERIFICATION_FAILED: "We could not confirm the result yet",
+};

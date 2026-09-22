@@ -93,11 +93,14 @@ export function getPublicConfig(): {
   dataMode: DataMode;
   binanceChainId: string;
   defaultMaxDeviationBps: number;
+  /** A public BSC RPC endpoint, not a secret — safe for the browser to read balances/allowance directly. */
+  bscRpcUrl: string;
 } {
   const config = getServerConfig();
   return {
     dataMode: config.dataMode,
     binanceChainId: config.binanceChainId,
     defaultMaxDeviationBps: config.defaultMaxDeviationBps,
+    bscRpcUrl: config.bscRpcUrl,
   };
 }
