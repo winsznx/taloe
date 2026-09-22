@@ -206,3 +206,12 @@ given current evidence. 205 tests / 15 files; lint, typecheck, build clean. Sess
 Extended `capacity.ts` with availability status classification (8-state raw evidence, no composite score) and a real unsigned `buildSwap` check per wrapper; extended the sweep to $100,000. Extended `capacity-report.ts` with a routing-direction matrix, an ALWAYS_USE_BSTOCK baseline (reusing the same capacity brackets, no separate comparison), and bidirectional evidence collection. Full campaign: `internal/evidence/STATIC_BASELINE_FALSIFICATION_REPORT.md`.
 Finding: ALWAYS_USE_BSTOCK is falsified (AVGO/COIN/DRAM at $100,000 — bStock quotes a bad price where Ondo refuses or stays clean), but the counterexamples are thin (3/40, boundary-only). 205 tests / 15 files; lint, typecheck, build clean. Session evidence still after-hours only.
 **Verdict: REVISE.** Ready for first live fill: still NO.
+
+---
+
+## Product-lock phase: wallet readiness addendum (2026-09-22)
+
+Real wallet execution readiness is structurally complete: EIP-1193 connect/chain-switch/balance/gas/allowance reads (dependency-free, direct RPC, via a new `@taloe/router-core/chain-reader` subpath export so the client bundle never sees the signed Binance client or `node:crypto`), a 16-state `deriveWalletReadinessState` (`@taloe/execution`) that never conflates market-route quality with wallet readiness, and two server actions wiring `prepareExecution`/`resumeAfterApproval` into a live-mode-only `/review` panel. Approval is built for exactly the trade amount, simulated, and spender-checked before being offered; after a human signs it, allowance is re-verified on-chain and the pre-approval quote is discarded and mandatorily re-quoted (new test proves the stale `quoteId` never reaches `simulateRoute`). The final swap broadcast remains unwired for live mode — unchanged from before, pending explicit human authorization.
+Also added: `routeEquityIntent`, a clean internal service-shape composition (no HTTP handler, no auth) so a future external API/SDK never diverges from the web app's routing logic; `AGGREGATION_PULL_TEST.md` and `PRODUCT_OBJECT_TEST.md`, prepared but with zero real outsider evidence yet; session campaigns for regular-hours and weekend marked `PENDING_REAL_TIME` (after-hours evidence preserved, not rerun).
+240 tests / 18 files; lint, typecheck, build clean. No live wallet has been connected with real funds; nothing was signed or broadcast.
+**Verdict: not re-evaluated this phase** — see `PRODUCT_OBJECT_TEST.md` for why a product-lock decision (A vs B) is not yet decidable.
