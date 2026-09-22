@@ -143,3 +143,14 @@ Docs retrieval date for every `DOC_VERIFIED` row below: **2026-09-21**.
 | I7 | Wrapper capacity diverges materially at size across the 40-underlying live universe. | pending capacity campaign artifact | `internal/evidence/runtime/capacity-afterhours-*.json`, `capacity-report-*.json` |
 | I8 | Split-route execution shows [LOAD_BEARING/MARGINAL/NOT_USEFUL] advantage over the best single wrapper. | pending capacity campaign artifact | same |
 | I9 | Session (regular-hours, weekend) behaviour differs from the after-hours baseline. | `UNTESTED` — after-hours only so far | `internal/evidence/SESSION_CAMPAIGN.md` |
+
+## J. Static-baseline falsification campaign 2026-09-22 (see `internal/evidence/STATIC_BASELINE_FALSIFICATION_REPORT.md`)
+
+| # | Claim | Status | Evidence |
+|---|---|---|---|
+| J1 | ALWAYS_USE_BSTOCK is a safe universal substitute for Taloe's routing. | `DISPROVED` — 3/40 underlyings (AVGO, COIN, DRAM) at $100,000 where bStock quotes a materially worse price than Ondo (170-5,168 bps) while Ondo either stays inside the limit or correctly refuses to quote at all. | `capacity-afterhours-2026-09-22T00-50-38-325Z.json`, `capacity-report-afterhours-2026-09-22T01-14-08-334Z.json` |
+| J2 | bStock is deeper/more available than Ondo on average. | `EMPIRICALLY_MEASURED`, confirmed at larger scope: Ondo returned `40374` (insufficient liquidity) on 15/480 wrapper-ticket probes vs bStock's 0/480; bStock's p10 safe capacity at 150 bps ($50,000) exceeds Ondo's p10 ($1,000). | same |
+| J3 | Wrapper ranking direction can flip with the deviation threshold chosen, for the same underlying. | `EMPIRICALLY_MEASURED` (MSFT: Ondo-better at 50 bps, bStock-better at 100/150 bps, same session). | `capacity-report-afterhours-2026-09-22T01-14-08-334Z.json`, `routingDirectionMatrix` |
+| J4 | Taloe meaningfully outperforms ALWAYS_USE_BSTOCK in a recurring, non-trivial share of cases. | 3/40 (7.5%) at 150 bps, all boundary cases at the $100,000 anchor (factor lower bound 1x — proven only at that exact ticket, not with margin). | same |
+| J5 | Split-route execution is useful given the extended ($100k) evidence. | `NOT_USEFUL` (unchanged from the $25k campaign): 0 of 24 evaluable underlyings show a binding best-single-wrapper capacity limit that a split would relieve. | `capacity-report-afterhours-2026-09-22T01-14-08-334Z.json`, `splitExperiment` |
+| J6 | Small-ticket (<=$100) wrapper equivalence holds at the larger sample. | `EMPIRICALLY_MEASURED`: 105/108 cells (97.2%) materially equivalent, median gap 4.9 bps. | same, `smallSize` |

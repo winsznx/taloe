@@ -196,3 +196,13 @@ primitive with no invented liquidity model. Capacity campaign ran live across al
 95.5% small-ticket equivalence confirmed, wrapper divergence at size confirmed as a cross-underlying pattern (not NVDA-only), split-route execution assessed NOT_USEFUL
 given current evidence. 205 tests / 15 files; lint, typecheck, build clean. Session evidence still after-hours only (`SESSION_CAMPAIGN.md`).
 **Verdict: REVISE.** Ready for first live fill: still NO — fresh-wallet approval flow is unsigned/untested end to end, no wallet adapter, no funded wallet.
+
+**Checkpoint commit:** `ebd5394fa1d2623fb21287469e8cd590621807dc` — "feat: validate Taloe capacity-aware routing". 66 files, 205 tests, lint/typecheck/build clean. No `.env`, no credentials, no gitignored runtime evidence included (verified before commit).
+
+---
+
+## Static-baseline falsification addendum (2026-09-22)
+
+Extended `capacity.ts` with availability status classification (8-state raw evidence, no composite score) and a real unsigned `buildSwap` check per wrapper; extended the sweep to $100,000. Extended `capacity-report.ts` with a routing-direction matrix, an ALWAYS_USE_BSTOCK baseline (reusing the same capacity brackets, no separate comparison), and bidirectional evidence collection. Full campaign: `internal/evidence/STATIC_BASELINE_FALSIFICATION_REPORT.md`.
+Finding: ALWAYS_USE_BSTOCK is falsified (AVGO/COIN/DRAM at $100,000 — bStock quotes a bad price where Ondo refuses or stays clean), but the counterexamples are thin (3/40, boundary-only). 205 tests / 15 files; lint, typecheck, build clean. Session evidence still after-hours only.
+**Verdict: REVISE.** Ready for first live fill: still NO.
