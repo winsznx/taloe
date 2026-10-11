@@ -29,8 +29,13 @@ import { useWallet } from "@/lib/wallet/useWallet";
 import { sendTransaction, getInjectedProvider } from "@/lib/wallet/provider";
 import { waitForReceipt } from "@/lib/wallet/receipt";
 
-/** Rough estimate, not an exact gas quote — the wallet computes the real cost at sign time. */
-const MIN_GAS_BALANCE_WEI = 1_000_000_000_000_000n; // 0.001 BNB
+/**
+ * Rough pre-check, not an exact gas quote — the wallet computes the real cost
+ * at sign time. Padded ~3x over the combined approval+swap gas actually spent
+ * on the mainnet-trade proof (~0.00006 BNB at the gas price observed then;
+ * see internal/evidence/LIVE_MAINNET_TRADE.md), not an arbitrary round number.
+ */
+const MIN_GAS_BALANCE_WEI = 200_000_000_000_000n; // 0.0002 BNB
 
 export interface WalletExecutionPanelProps {
   readonly requiredChainId: string;
