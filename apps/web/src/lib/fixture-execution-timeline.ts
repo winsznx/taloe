@@ -32,6 +32,7 @@ interface TimelineStep {
 
 const SWAP_SUCCESS: readonly TimelineStep[] = [
   { atMs: 0, state: "ROUTE_SELECTED" },
+  { atMs: 300, state: "BALANCE_CHECK" },
   { atMs: 600, state: "ALLOWANCE_CHECK" },
   { atMs: 1200, state: "REQUOTE_AND_REVALIDATE" },
   { atMs: 1800, state: "BUILD_SWAP" },
