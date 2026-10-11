@@ -23,26 +23,38 @@ Living document. Kept current from now, not written at the deadline.
 
 *Draft. Every clause must stay inside what `CLAIM_LEDGER.md` supports.*
 
-> Taloe is a tokenized-equity execution router for BNB Smart Chain. You choose a
-> company and an amount. Taloe finds the tokenized representations of that company
-> available on BSC, compares the executable routes across issuers and execution modes
-> under the constraint you set, and either routes the best valid exposure or tells you
-> not to trade.
+> Taloe is a size-aware tokenized-equity execution router for BNB Smart Chain. You
+> choose a company, an amount, and how far the price can move. Taloe finds the
+> tokenized representations of that company actually available on BSC, checks how much
+> exposure the requested size really receives under live executable quotes, and returns
+> the viable route — or refuses before you take a materially bad fill. A static
+> "always pick the usually-better wrapper" policy was tested against live data and
+> falsified: it loses badly, rarely, at large size. One real trade has been executed
+> and independently verified on BSC mainnet.
 
-Wording to avoid until measured: any percentage, any "best price" claim, any assertion
-that multiple wrappers were compared before that is observed live.
+Wording to avoid: any "best price at small size" claim (measured and found mostly
+negligible — see `CAPACITY_VALIDATION_REPORT.md`), any session-dependence claim
+(untested — every live campaign ran after-hours), any RFQ-execution claim (code exists,
+never observed live).
 
 ## Limitations
 
-To be stated openly in the submission, not hidden:
+Stated openly, not hidden:
 
-- (current) no live API integration verified
-- (current) no mainnet execution
-- underlying-equivalent normalization is inactive pending validated issuer ratio
-  semantics
+- the product's browser-wallet flow reaches a simulated, ready-to-sign swap but does
+  not yet broadcast it — the mainnet proof used a direct script with an operator-held
+  key, not the UI's own wallet path
+- RFQ execution is implemented and branches correctly on runtime data, but has never
+  been observed live (every quote returned has been SWAP)
+- session dependence (regular hours, weekend) is untested — see `SESSION_CAMPAIGN.md`
+- no external API/SDK published; the routing primitive exists internally
+  (`routeEquityIntent`) with no auth or external caller
+- underlying-equivalent normalization is active for Ondo (empirically observed
+  direction) and bStock (documented), inactive/`UNKNOWN` for any other issuer
 - USDT-only funding in v1
 - BSC mainnet only, spot only
-- issuer coverage limited to what the Binance RWA surface actually exposes
+- issuer coverage limited to what the Binance RWA surface actually exposes (Ondo,
+  bStock observed; xStock absent from live platform data despite being documented)
 
 ## V0 checklist
 

@@ -5,10 +5,10 @@ the same work cycle.
 
 | Surface | Exists | Last checked |
 |---|---|---|
-| README | no | — |
+| README | yes, rewritten for live-validated status | 2026-10-11 |
 | Deployed application | no | — |
 | PRD (`internal/product/Taloe_PRD_v1.md`) | yes | 2026-09-21 |
-| Submission answers | draft | 2026-09-21 |
+| Submission answers | draft, limitations updated for live status | 2026-10-11 |
 | Demo narration | outline | 2026-09-21 |
 | Screenshots | no | — |
 | DX Report | journal only | 2026-09-21 |
