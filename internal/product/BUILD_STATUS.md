@@ -17,8 +17,8 @@
 | E — Quote + WrapRoute | Real candidates, RFQ/SWAP separation, gates, ranking, issuer-specific normalization | **PASS in fixture mode** — including the correction-3 issuer-divergence mechanism (one issuer pre-rejected under a closed market, another survives) |
 | F — Simulation | Simulation as a hard pre-sign gate | **PASS structurally (fixture + mocked live adapter)** — implementation `IMPLEMENTED_UNVERIFIED`, docs `DOC_VERIFIED` (one contradiction, DOC-005), runtime `BLOCKED_CREDENTIALS` |
 | G — Product UI | End-to-end manual journey | **PASS, structurally, in fixture mode** — all 8 required routes exist, build, and were smoke-tested via a running server through every fixture scenario and the full execution/receipt timeline. No live wallet SDK. No persisted session store (pages are pure functions of their URL — see DECISIONS.md D-020). |
-| H — Live mainnet proof | Small BSC execution, independently verified | **BLOCKED** — credentials and funded wallet |
-| I — Evaluation campaign | Baselines, ablations, measured evidence | **BLOCKED** — depends on H |
+| H — Live mainnet proof | Small BSC execution, independently verified | **PASS** (2026-10-11) — real $10 USDT->NVDAon trade, approval + mandatory re-quote + swap, both tx hashes on-chain, verified by balance delta not just tx status. See `LIVE_MAINNET_TRADE.md`. |
+| I — Evaluation campaign | Baselines, ablations, measured evidence | **PASS** — capacity, falsification and static-baseline campaigns against live data (see `CAPACITY_VALIDATION_REPORT.md`, `STATIC_BASELINE_FALSIFICATION_REPORT.md`) |
 | J — Agentic Wallet | Constrained execution surface | **NOT STARTED** (correctly gated behind core path, explicitly deferred this round) |
 | K — Agent Studio | Route Watch | **NOT STARTED** (optional, evidence-gated, explicitly deferred this round) |
 
@@ -215,3 +215,10 @@ Real wallet execution readiness is structurally complete: EIP-1193 connect/chain
 Also added: `routeEquityIntent`, a clean internal service-shape composition (no HTTP handler, no auth) so a future external API/SDK never diverges from the web app's routing logic; `AGGREGATION_PULL_TEST.md` and `PRODUCT_OBJECT_TEST.md`, prepared but with zero real outsider evidence yet; session campaigns for regular-hours and weekend marked `PENDING_REAL_TIME` (after-hours evidence preserved, not rerun).
 240 tests / 18 files; lint, typecheck, build clean. No live wallet has been connected with real funds; nothing was signed or broadcast.
 **Verdict: not re-evaluated this phase** — see `PRODUCT_OBJECT_TEST.md` for why a product-lock decision (A vs B) is not yet decidable.
+
+---
+
+## Live mainnet trade addendum (2026-10-11)
+
+PRD goal #10 achieved: `scripts/live/execute-mainnet-trade.ts` ran the full pipeline (market decision -> allowance-aware readiness -> approval -> independent on-chain re-verification -> mandatory re-quote -> fresh simulation -> sign -> broadcast -> independent balance-based verification) against real BSC mainnet, through unmodified product code (`runRouteDiscovery`, `prepareExecution`, `resumeAfterApproval`). Two real transactions, both confirmed success on-chain: approval `0xb1ef6221a4cccaab0028106b979677368aae3eaa30d3a0502fe4e7e9184a77af`, swap `0xd73092697cdc32778e5fda0ae1cf480f7f78e0253382f1e1a93c95881c3b6a92`. Verified by reading the wrapper-token and USDT balance before/after, not by trusting the receipt status alone: 10.0 USDT spent, ~0.0434 NVDAon received. Full writeup: `LIVE_MAINNET_TRADE.md`.
+Signing used a locally-held test-wallet private key (generated for this purpose, gitignored, chmod 600, never logged) via a single-responsibility signer (`sign_tx.py`) — deliberately isolated from all Taloe business logic. This is NOT the shipped product's signing path (that remains the user's own browser wallet via `WalletExecutionPanel`); the live broadcast step for that browser-facing path is still unwired, same as before.

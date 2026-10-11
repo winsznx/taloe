@@ -18,6 +18,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yaml,yml}\"",
     "verify": "pnpm typecheck && pnpm test",
     "validate:typecheck": "tsc -p scripts/validate/tsconfig.json --noEmit",
+    "live:typecheck": "tsc -p scripts/live/tsconfig.json --noEmit",
     "validate:auth": "tsx scripts/validate/auth.ts",
     "validate:platforms": "tsx scripts/validate/platforms.ts",
     "validate:ticker": "tsx scripts/validate/ticker.ts",
