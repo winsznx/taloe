@@ -1,24 +1,29 @@
 /*
- * Temporary styling only.
- *
- * Every visual value is a token on :root so the whole look can be replaced from
- * this block once the visual reference images arrive, without touching any
- * product logic, layout structure or state handling. Deliberately restrained:
- * no brand colours, no gradients, no decorative work. Spacing, hierarchy,
- * focus states and touch targets are real, because those are structural.
+ * Institutional light theme — deep indigo-navy ink on a cool near-white
+ * canvas, seafoam reserved for data/code, signal orange reserved for at
+ * most one accent surface per page. Every visual value is a token on
+ * :root so the whole look stays swappable without touching product logic,
+ * layout structure or state handling.
  */
 
 :root {
-  --color-bg: #fbfbfa;
+  --color-bg: #f6f6f8;
   --color-surface: #ffffff;
-  --color-border: #e3e2df;
-  --color-text: #1a1a18;
-  --color-text-muted: #6b6a66;
-  --color-accent: #1a1a18;
+  --color-border: #e3e4e8;
+  --color-heading: #111a4a;
+  --color-text: #3b3e47;
+  --color-text-muted: #7c7f88;
+  --color-accent: #111a4a;
   --color-accent-text: #ffffff;
-  --color-positive: #1f6b3f;
-  --color-caution: #8a5a12;
+  --color-positive: #167e6c;
+  --color-caution: #ec652b;
   --color-negative: #97241f;
+  --color-code: #167e6c;
+  --color-code-value: #0f7a52;
+
+  --shadow-card: 0 1px 4px rgba(18, 22, 30, 0.024), 0 1px 0 rgba(18, 22, 30, 0.05), 0 0 0 1px rgba(18, 22, 30, 0.024);
+  --shadow-float: 0 22px 18px rgba(0, 0, 0, 0.03), 0 12px 10px rgba(0, 0, 0, 0.03), 0 3px 2px rgba(0, 0, 0, 0.05);
+  --shadow-button: 0 1px 3px rgba(17, 26, 74, 0.12), 0 1px 0 rgba(17, 26, 74, 0.06);
 
   --radius: 8px;
   --space-1: 4px;
@@ -29,25 +34,27 @@
   --space-6: 32px;
   --space-7: 48px;
 
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-
   --max-width: 720px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-bg: #131312;
-    --color-surface: #1c1c1a;
-    --color-border: #32312e;
-    --color-text: #f2f1ee;
-    --color-text-muted: #a3a29d;
-    --color-accent: #f2f1ee;
-    --color-accent-text: #131312;
-    --color-positive: #6dbb8b;
-    --color-caution: #d6a75e;
+    --color-bg: #0b0e1f;
+    --color-surface: #111530;
+    --color-border: #262b4d;
+    --color-heading: #eef0fb;
+    --color-text: #c7cae4;
+    --color-text-muted: #9ca0c4;
+    --color-accent: #eef0fb;
+    --color-accent-text: #111a4a;
+    --color-positive: #44b48b;
+    --color-caution: #f2936b;
     --color-negative: #e2807b;
+    --color-code: #44b48b;
+    --color-code-value: #94efb7;
+    --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --shadow-float: 0 22px 18px rgba(0, 0, 0, 0.35);
+    --shadow-button: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -99,6 +106,7 @@ body {
   font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
+  color: var(--color-heading);
 }
 
 /*
@@ -119,10 +127,12 @@ body {
 
 .lede {
   font-size: 1.375rem;
+  font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.015em;
   margin: 0 0 var(--space-6);
   max-width: 34ch;
+  color: var(--color-heading);
 }
 
 .card {
@@ -130,6 +140,7 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: var(--space-5);
+  box-shadow: var(--shadow-card);
 }
 
 .field {
@@ -193,6 +204,7 @@ body {
   background: var(--color-accent);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-button);
   cursor: pointer;
 }
 
@@ -365,12 +377,29 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--space-4) var(--space-6);
+  position: sticky;
+  top: 0;
+  background: rgba(246, 246, 248, 0.82);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
+  z-index: 10;
+}
+
+.landing-nav .wordmark {
+  font-size: 1.25rem;
 }
 
 .landing-nav-cta,
 .final-cta {
   width: auto;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-5);
+}
+
+/* The one rare warm surface per page — reserved for the landing page's primary action. */
+.cta-accent {
+  background: var(--color-caution);
+  border-color: var(--color-caution);
 }
 
 .section {
@@ -393,10 +422,12 @@ body {
 
 .section-heading {
   font-size: 1.75rem;
+  font-weight: 600;
   line-height: 1.25;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   max-width: 28ch;
   margin: 0 0 var(--space-5);
+  color: var(--color-heading);
 }
 
 .section-lede {
@@ -428,11 +459,13 @@ body {
 }
 
 .hero-headline {
-  font-size: clamp(2rem, 4.2vw, 3rem);
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.25rem, 4.6vw, 3.375rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
   margin: 0 0 var(--space-5);
   max-width: 20ch;
+  color: var(--color-heading);
 }
 
 .hero-sub {
@@ -459,6 +492,7 @@ body {
 
 .hero-figure {
   padding: var(--space-6);
+  box-shadow: var(--shadow-float);
 }
 
 .hero-figure-label,
@@ -482,6 +516,7 @@ body {
 .hero-compare-cell {
   text-align: center;
   padding: var(--space-4) var(--space-2);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
@@ -548,6 +583,7 @@ body {
 .step-title {
   font-weight: 600;
   margin: 0 0 var(--space-2);
+  color: var(--color-heading);
 }
 
 .step-body {
@@ -565,7 +601,7 @@ body {
 }
 
 .proof-stat {
-  border-top: 2px solid var(--color-accent);
+  border-top: 2px solid var(--color-positive);
   padding-top: var(--space-4);
 }
 
@@ -574,6 +610,8 @@ body {
   font-weight: 600;
   letter-spacing: -0.02em;
   margin: 0 0 var(--space-2);
+  color: var(--color-positive);
+  font-family: var(--font-mono);
 }
 
 .proof-caption {
@@ -586,6 +624,16 @@ body {
 
 .proof-links {
   font-size: 0.875rem;
+}
+
+.proof-links a {
+  color: var(--color-code-value);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.proof-links a:hover {
+  border-bottom-color: var(--color-code-value);
 }
 
 .final-section {

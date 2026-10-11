@@ -169,7 +169,7 @@ export default function LandingPage(): ReactNode {
             Connect a wallet, name a company and an amount, and see the route Taloe would
             take — or the reason it wouldn&apos;t.
           </p>
-          <Link href="/app" className="button final-cta">
+          <Link href="/app" className="button final-cta cta-accent">
             Open the dashboard
           </Link>
         </div>
