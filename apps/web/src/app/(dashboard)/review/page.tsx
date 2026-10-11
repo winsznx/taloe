@@ -193,6 +193,8 @@ export default async function ReviewPage({
           maxDeviationBps={intent.maxDeviationBps}
           routeId={route.routeId}
           knownApproveTarget={route.quote.approveTarget}
+          companyName={decision.underlying.companyName}
+          spendTokenSymbol="USDT"
         />
       ) : null}
 

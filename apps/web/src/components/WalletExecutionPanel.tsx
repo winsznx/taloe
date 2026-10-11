@@ -14,7 +14,7 @@
  * built and simulated; nothing is rebuilt or substituted at sign time.
  */
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 import { deriveWalletReadinessState, WALLET_READINESS_COPY } from "@taloe/execution";
 import type { SignedLifecyclePhase, WalletFacts } from "@taloe/execution";
@@ -22,6 +22,7 @@ import type { ReadinessOutcome } from "@taloe/router-core";
 import { readErc20Balance } from "@taloe/router-core/chain-reader";
 
 import { checkExecutionReadiness, checkPostApprovalReadiness } from "@/server/actions/readiness";
+import { recordExecution } from "@/server/actions/activity";
 import { useAllowance } from "@/lib/wallet/useAllowance";
 import { useBalances } from "@/lib/wallet/useBalances";
 import { useWallet } from "@/lib/wallet/useWallet";
@@ -42,6 +43,8 @@ export interface WalletExecutionPanelProps {
   readonly routeId: string;
   /** Known once a market quote exists, before any wallet check; null only if the quote itself carried none. */
   readonly knownApproveTarget: string | null;
+  readonly companyName: string;
+  readonly spendTokenSymbol: string;
 }
 
 export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.ReactNode {
@@ -120,6 +123,7 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
         value: readiness.approvalTransaction.value,
         data: readiness.approvalTransaction.data,
       });
+      setApprovalTxHash(hash);
       setLifecycle({ kind: "APPROVAL_BROADCAST_PENDING" });
       const receipt = await waitForReceipt(props.rpcUrl, hash);
       if (receipt.status !== "0x1") throw new Error(`Approval reverted on-chain (block ${receipt.blockNumber}). Check ${hash} on BscScan.`);
@@ -148,9 +152,10 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
   };
 
   const [verifiedReceive, setVerifiedReceive] = useState<string | null>(null);
+  const [approvalTxHash, setApprovalTxHash] = useState<string | null>(null);
 
   /** Signs and broadcasts the ALREADY-SIMULATED swap, then verifies by reading the actual balance delta — never by trusting the receipt status alone. */
-  const signAndExecuteSwap = useCallback((): void => {
+  const signAndExecuteSwap = (): void => {
     if (readiness?.kind !== "READY_TO_SIGN" || !wallet.address) return;
     const owner = wallet.address;
     const wrapperToken = readiness.route.wrapper.tokenContractAddress;
@@ -178,11 +183,30 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
       }
       setVerifiedReceive(delta.toString());
       setLifecycle({ kind: "SWAP_VERIFIED_SUCCESS" });
+
+      // Record only what was just independently proven true — never speculative.
+      void recordExecution({
+        walletAddress: owner,
+        chainId: props.requiredChainId,
+        underlyingTicker: readiness.route.wrapper.underlyingTicker,
+        companyName: props.companyName,
+        wrapperSymbol: readiness.route.wrapper.tokenSymbol,
+        platformId: readiness.route.wrapper.platformId,
+        spendToken: props.spendTokenSymbol,
+        spendAmountBaseUnits: readiness.route.quote.fromTokenAmount,
+        receivedAmountBaseUnits: delta.toString(),
+        executionMode: readiness.route.quote.executionMode,
+        approvalTxHash,
+        swapTxHash: hash,
+        verifiedSuccess: true,
+      }).catch(() => {
+        // Activity history is a convenience record, not the source of truth — a failed write here must never affect the verified result already shown.
+      });
     })().catch((error: unknown) => {
       setLifecycle(null);
       setActionError(error instanceof Error ? error.message : "The swap could not be signed or confirmed");
     });
-  }, [readiness, wallet.address, props.rpcUrl]);
+  };
 
   return (
     <div className="card" style={{ marginTop: "var(--space-5)" }}>

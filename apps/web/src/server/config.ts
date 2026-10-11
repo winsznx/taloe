@@ -25,6 +25,8 @@ const envSchema = z.object({
   TALOE_BSC_RPC_URL: z.string().url().default("https://bsc-dataseed.bnbchain.org"),
   TALOE_QUOTE_MIN_REMAINING_MS: z.coerce.number().int().positive().default(8000),
   TALOE_DEFAULT_MAX_DEVIATION_BPS: z.coerce.number().int().positive().default(150),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 });
 
 export type DataMode = "live" | "fixture";
@@ -41,6 +43,11 @@ export interface ServerConfig {
     readonly apiSecret: string;
     readonly baseUrl: string;
     readonly recvWindowMs: number;
+  } | null;
+  /** Present only when activity-history persistence is configured. Absent, not a hard failure: the feature degrades to its honest empty state. */
+  readonly supabase: {
+    readonly url: string;
+    readonly serviceRoleKey: string;
   } | null;
 }
 
@@ -80,6 +87,10 @@ export function getServerConfig(): ServerConfig {
             baseUrl: env.BINANCE_WEB3_BASE_URL,
             recvWindowMs: env.BINANCE_WEB3_RECV_WINDOW_MS,
           }
+        : null,
+    supabase:
+      env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY
+        ? { url: env.SUPABASE_URL, serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY }
         : null,
   };
   return cached;
