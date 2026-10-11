@@ -12,6 +12,11 @@ materially bad fill.
 > page, `internal/product/BUILD_STATUS.md` for what is and isn't built, and
 > `internal/evidence/LIVE_MAINNET_TRADE.md` for the mainnet proof (two real,
 > on-chain-checkable transaction hashes).
+>
+> **Live, in live mode, right now: https://web-pink-six-80.vercel.app** — running against
+> the real Binance Web3 API, not fixtures. Deployed from Frankfurt (`fra1`): Binance's
+> compliance restriction blocked requests from Vercel's US default region, so the
+> deployment region was switched rather than worked around.
 
 ---
 

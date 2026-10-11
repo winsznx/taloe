@@ -15,7 +15,7 @@ Living document. Kept current from now, not written at the deadline.
 | Tracks selected | main track; Agentic Wallet and Agent Studio specials are optional and evidence-gated |
 | Public repository URL | https://github.com/winsznx/taloe |
 | Demo video URL | not recorded |
-| Deployed judge link | not deployed |
+| Deployed judge link | https://web-pink-six-80.vercel.app (live mode, Vercel, fra1) |
 | DX Report | journal started, report not written |
 | Registration | **not done** |
 
