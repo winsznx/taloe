@@ -12,6 +12,7 @@ import type { FixtureExecutionScenario } from "@/lib/fixture-execution-timeline"
 import { intentQueryString, parseIntentQuery } from "@/lib/intent-query";
 import { getDiscoveryPort } from "@/server/discovery";
 import { getServerConfig } from "@/server/config";
+import { TokenIcon } from "@/components/TokenIcon";
 
 const VERIFICATION_LABEL: Readonly<Record<string, string>> = {
   VERIFIED_SUCCESS: "Verified success",
@@ -101,7 +102,8 @@ export default async function ReceiptPage({
               <span className="status-marker">
                 {verified ? "received" : "would have received"}
               </span>
-              <span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <TokenIcon underlyingTicker={route.wrapper.underlyingTicker} symbol={route.wrapper.tokenSymbol} size={20} />
                 ~{toDecimalString(fromBaseUnits(route.quote.toTokenAmount, route.wrapper.decimals), 6)}{" "}
                 {route.wrapper.tokenSymbol}
               </span>

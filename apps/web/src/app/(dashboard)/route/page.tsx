@@ -19,6 +19,7 @@ import { getServerConfig } from "@/server/config";
 import { OUTCOME_HEADING, OUTCOME_SUMMARY } from "@/lib/decision-copy";
 import type { IntentQuery } from "@/lib/intent-query";
 import { intentQueryString, parseIntentQuery } from "@/lib/intent-query";
+import { TokenIcon } from "@/components/TokenIcon";
 
 /** Below this the wrappers are usually equivalent; probing capacity would cost quotes and show nothing. */
 const CAPACITY_PANEL_MIN_TICKET_USD = 500;
@@ -313,13 +314,18 @@ export function RouteSummary({
 
   return (
     <>
-      <p className="field-label">
-        {route.wrapper.tokenSymbol}
-        {route.wrapper.platformId ? ` · ${route.wrapper.platformId}` : ""}
-      </p>
-      <p style={{ fontSize: "1.5rem", fontWeight: 600, margin: "var(--space-1) 0 var(--space-4)" }}>
-        ~{outputAmount} {route.wrapper.tokenSymbol}
-      </p>
+      <div className="wrapper-heading">
+        <TokenIcon underlyingTicker={route.wrapper.underlyingTicker} symbol={route.wrapper.tokenSymbol} />
+        <div>
+          <p className="field-label" style={{ marginBottom: 0 }}>
+            {route.wrapper.tokenSymbol}
+            {route.wrapper.platformId ? ` · ${route.wrapper.platformId}` : ""}
+          </p>
+          <p style={{ fontSize: "1.5rem", fontWeight: 600, margin: "var(--space-1) 0 0" }}>
+            ~{outputAmount} {route.wrapper.tokenSymbol}
+          </p>
+        </div>
+      </div>
       <ul className="status-list">
         {requestedAmount ? (
           <li>

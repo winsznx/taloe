@@ -10,6 +10,7 @@ import type { IntentQuery } from "@/lib/intent-query";
 import { intentQueryString, parseIntentQuery } from "@/lib/intent-query";
 import { defaultScenarioFor, FIXTURE_EXECUTION_SCENARIOS } from "@/lib/fixture-execution-timeline";
 import { WalletExecutionPanel } from "@/components/WalletExecutionPanel";
+import { TokenIcon } from "@/components/TokenIcon";
 import type { FixtureExecutionScenario } from "@/lib/fixture-execution-timeline";
 
 export default async function ReviewPage({
@@ -98,7 +99,8 @@ export default async function ReviewPage({
           </li>
           <li>
             <span className="status-marker">receive</span>
-            <span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <TokenIcon underlyingTicker={route.wrapper.underlyingTicker} symbol={route.wrapper.tokenSymbol} size={20} />
               ~{outputAmount} {route.wrapper.tokenSymbol}
             </span>
           </li>

@@ -262,6 +262,14 @@ body {
   align-items: baseline;
 }
 
+/* Lets long content (addresses, tx hashes) actually wrap instead of
+   overflowing the row — a flex item's default min-width is its content's
+   natural width, which for a 42+ character hex string is wider than a
+   phone screen. */
+.status-list li > span:last-child {
+  min-width: 0;
+}
+
 /*
  * Pass/fail is never communicated by colour alone: each state carries a text
  * marker as well, so it survives colour blindness and greyscale printing.
@@ -276,6 +284,33 @@ body {
 .mono {
   font-family: var(--font-mono);
   font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+.token-icon {
+  display: inline-block;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+  vertical-align: middle;
+  background: var(--color-bg);
+}
+
+.token-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.wrapper-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 @media (max-width: 480px) {
