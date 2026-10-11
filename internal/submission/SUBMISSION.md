@@ -41,9 +41,10 @@ never observed live).
 
 Stated openly, not hidden:
 
-- the product's browser-wallet flow reaches a simulated, ready-to-sign swap but does
-  not yet broadcast it — the mainnet proof used a direct script with an operator-held
-  key, not the UI's own wallet path
+- the product's browser-wallet flow now signs, broadcasts and independently verifies
+  the swap (not only the mainnet-proof script); it has not yet been exercised with a
+  funded wallet through a real browser click, only smoke-tested server-side and unit
+  tested
 - RFQ execution is implemented and branches correctly on runtime data, but has never
   been observed live (every quote returned has been SWAP)
 - session dependence (regular hours, weekend) is untested — see `SESSION_CAMPAIGN.md`

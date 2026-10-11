@@ -83,9 +83,11 @@ internal/              engineering memory, claim ledger, evidence, research
   no invented liquidity model. See `internal/evidence/CAPACITY_VALIDATION_REPORT.md`.
 - A static "always use the usually-better wrapper" baseline was tested against this live
   data and found to lose badly, rarely, at large size — `STATIC_BASELINE_FALSIFICATION_REPORT.md`.
-- Allowance-aware execution readiness (balance, allowance, build-time approval,
-  independent on-chain re-verification, mandatory re-quote after approval, fresh
-  simulation) is wired through real wallet connection (EIP-1193, no private key leaves
+- Allowance-aware execution readiness through to a signed, broadcast, independently
+  verified swap — balance, allowance, build-time approval, independent on-chain
+  re-verification, mandatory re-quote after approval, fresh simulation, sign, broadcast,
+  and verification by reading the actual balance delta rather than trusting the receipt
+  status — is wired through real wallet connection (EIP-1193, no private key ever leaves
   the browser) on the product's own `/review` page.
 - One real mainnet trade — $10 USDT into NVDAon on BSC, approval + swap, both
   transactions confirmed on-chain and independently verified by reading the actual
@@ -95,10 +97,6 @@ internal/              engineering memory, claim ledger, evidence, research
 
 ## Known limitations
 
-- The product's own browser-wallet flow gets a connected route to `READY_TO_SIGN` but
-  does not yet broadcast the final swap — that step was exercised directly (not through
-  the UI) to produce the mainnet proof above, using an operator-held key, not a user's
-  wallet. Wiring that last step into the browser flow is the next piece of work.
 - RFQ execution is implemented and branched on correctly at runtime, but has never been
   observed live — every quote taken this far has come back as `SWAP`.
 - Session dependence (regular US market hours, weekend) is untested; every live
