@@ -98,45 +98,51 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
       .finally(() => setChecking(false));
   };
 
+  /**
+   * One human action — signing the approval in their own wallet. Everything
+   * after that (waiting for it to mine, independently re-verifying the
+   * allowance, the mandatory re-quote) is automatic: it is verification, not
+   * a second broadcast, so there is nothing left for the human to decide
+   * until a fresh swap is actually ready to sign.
+   */
   const signApproval = (): void => {
     if (readiness?.kind !== "APPROVAL_REQUIRED" || !wallet.address) return;
+    const walletAddress = wallet.address;
+    const spender = readiness.spender;
+    const requiredBaseUnits = readiness.requiredBaseUnits;
     setLifecycle({ kind: "APPROVAL_AWAITING_SIGNATURE" });
     setActionError(null);
-    void sendTransaction(getInjectedProvider(), {
-      from: wallet.address,
-      to: readiness.approvalTransaction.to,
-      value: readiness.approvalTransaction.value,
-      data: readiness.approvalTransaction.data,
-    })
-      .then(() => {
-        setLifecycle({ kind: "APPROVAL_BROADCAST_PENDING" });
-      })
+
+    void (async () => {
+      const hash = await sendTransaction(getInjectedProvider(), {
+        from: walletAddress,
+        to: readiness.approvalTransaction.to,
+        value: readiness.approvalTransaction.value,
+        data: readiness.approvalTransaction.data,
+      });
+      setLifecycle({ kind: "APPROVAL_BROADCAST_PENDING" });
+      const receipt = await waitForReceipt(props.rpcUrl, hash);
+      if (receipt.status !== "0x1") throw new Error(`Approval reverted on-chain (block ${receipt.blockNumber}). Check ${hash} on BscScan.`);
+
+      setLifecycle({ kind: "APPROVAL_MINED_CONFIRMED" });
+      setChecking(true);
+      const result = await checkPostApprovalReadiness({
+        q: props.q,
+        amount: props.amount,
+        maxDeviationBps: props.maxDeviationBps,
+        routeId: props.routeId,
+        walletAddress,
+        spender,
+        requiredBaseUnits,
+      });
+      setLifecycle(null);
+      setRefreshNonce((n) => n + 1); // re-read allowance independently, never trust the action alone
+      if (result.ok) setReadiness(result.readiness);
+      else setActionError(result.error);
+    })()
       .catch((error: unknown) => {
         setLifecycle(null);
-        setActionError(error instanceof Error ? error.message : "The wallet rejected or failed the approval");
-      });
-  };
-
-  /** Human-triggered: "I've confirmed the approval in my wallet" — never polled automatically. */
-  const confirmApprovalAndRequote = (): void => {
-    if (readiness?.kind !== "APPROVAL_REQUIRED" || !wallet.address) return;
-    setLifecycle({ kind: "APPROVAL_MINED_CONFIRMED" });
-    setChecking(true);
-    setActionError(null);
-    void checkPostApprovalReadiness({
-      q: props.q,
-      amount: props.amount,
-      maxDeviationBps: props.maxDeviationBps,
-      routeId: props.routeId,
-      walletAddress: wallet.address,
-      spender: readiness.spender,
-      requiredBaseUnits: readiness.requiredBaseUnits,
-    })
-      .then((result) => {
-        setLifecycle(null);
-        setRefreshNonce((n) => n + 1); // re-read allowance independently, never trust the action alone
-        if (result.ok) setReadiness(result.readiness);
-        else setActionError(result.error);
+        setActionError(error instanceof Error ? error.message : "The approval could not be signed or confirmed");
       })
       .finally(() => setChecking(false));
   };
@@ -199,10 +205,6 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
         <button className="button" type="button" onClick={signApproval}>
           Approve in wallet
         </button>
-      ) : state === "APPROVAL_PENDING" ? (
-        <button className="button" type="button" onClick={confirmApprovalAndRequote} disabled={checking}>
-          {checking ? "Verifying…" : "I've approved — verify and refresh price"}
-        </button>
       ) : state === "REQUOTE_REQUIRED" || state === "SIMULATION_FAILED" || state === "VERIFICATION_FAILED" ? (
         <button className="button" type="button" onClick={runReadinessCheck} disabled={checking}>
           {checking ? "Checking…" : "Try again"}
@@ -220,7 +222,14 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
 
       {wallet.address ? (
         <p className="field-hint mono" style={{ marginTop: "var(--space-3)" }}>
-          {wallet.address}
+          {wallet.address}{" "}
+          <button
+            type="button"
+            onClick={wallet.disconnect}
+            style={{ background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer", font: "inherit", color: "inherit" }}
+          >
+            disconnect
+          </button>
         </p>
       ) : null}
       {spender && allowance.readable ? (
