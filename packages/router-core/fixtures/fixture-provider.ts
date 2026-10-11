@@ -477,4 +477,16 @@ export class FixtureDiscoveryProvider implements DiscoveryPort {
       provenance: ["fixture:synthetic"],
     });
   }
+
+  async buildSwapTransaction(
+    route: ExecutableRoute,
+    params: { walletAddress: string },
+  ): Promise<Discovered<UnsignedEvmTransaction>> {
+    return discoveryOk({
+      from: params.walletAddress,
+      to: route.wrapper.tokenContractAddress,
+      value: "0",
+      data: "0xfixtureswap",
+    });
+  }
 }

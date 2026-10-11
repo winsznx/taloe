@@ -48,6 +48,21 @@ describe("prepareExecution — allowance-aware readiness", () => {
     port.grantFixtureAllowance(WALLET, SPENDER, "999999999999999999999999");
     const readiness = await prepareExecution(context(port), decision);
     expect(readiness.kind).toBe("READY_TO_SIGN");
+    if (readiness.kind !== "READY_TO_SIGN") return;
+    // The unsigned swap tx is handed back directly — the wallet layer never has to rebuild it itself.
+    expect(readiness.swapTransaction.to).toBe(readiness.route.wrapper.tokenContractAddress);
+    expect(readiness.swapTransaction.from).toBe(WALLET);
+  });
+
+  it("refuses closed, not silently through, when the swap cannot be rebuilt right after a passing simulation", async () => {
+    const port = new FixtureDiscoveryProvider();
+    const decision = await decide(port, FIXTURE_SCENARIOS.ACT_TWO_WRAPPERS);
+    port.grantFixtureAllowance(WALLET, SPENDER, "999999999999999999999999");
+    port.buildSwapTransaction = async () => ({ ok: false, error: { kind: "SPONSOR_UNAVAILABLE", message: "quote expired between simulate and build" } });
+    const readiness = await prepareExecution(context(port), decision);
+    expect(readiness.kind).toBe("REFUSED");
+    if (readiness.kind !== "REFUSED") return;
+    expect(readiness.attempts.map((a) => a.reason)).toContain("SWAP_BUILD_FAILED");
   });
 
   it("does not fail closed when the allowance cannot be READ: it stops with a distinct reason", async () => {

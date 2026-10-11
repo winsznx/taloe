@@ -233,10 +233,11 @@ export class LiveDiscoveryProvider implements DiscoveryPort {
    * for `executionMode === "SWAP"` (PRD: RFQ settles vendor-side and the
    * client never holds a transaction to simulate).
    */
-  async simulateRoute(
+  /** Shared by `simulateRoute` and `buildSwapTransaction` so there is exactly one build call shape. */
+  private async buildSwapTx(
     route: ExecutableRoute,
-    params: { chainId: string; walletAddress: string; spendTokenAddress: string; now: Date },
-  ): Promise<Discovered<SimulationResult>> {
+    params: { chainId: string; walletAddress: string; spendTokenAddress: string },
+  ): Promise<Discovered<UnsignedEvmTransaction>> {
     const build = await this.services.trading.buildSwap({
       binanceChainId: params.chainId,
       quoteId: route.quote.quoteId,
@@ -251,27 +252,41 @@ export class LiveDiscoveryProvider implements DiscoveryPort {
     if (!build.ok) {
       return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: build.error.message, cause: build.error });
     }
-
     const tx = build.value.tx;
     if (!tx?.from || !tx.to || !tx.data) {
-      // A route we believed was SWAP returned no usable EVM transaction to
-      // simulate — either the runtime executionMode changed between quote
-      // and build, or the response is malformed. Fail closed rather than
-      // simulate a guessed payload.
+      // A route we believed was SWAP returned no usable EVM transaction —
+      // either the runtime executionMode changed between quote and build, or
+      // the response is malformed. Fail closed rather than act on a guess.
       return discoveryErr({
         kind: "SPONSOR_UNAVAILABLE",
-        message: "swap build response did not include a complete EVM transaction (from/to/data) to simulate",
+        message: "swap build response did not include a complete EVM transaction (from/to/data)",
       });
     }
+    return discoveryOk({ from: tx.from, to: tx.to, value: tx.value ?? "0", data: tx.data });
+  }
+
+  async simulateRoute(
+    route: ExecutableRoute,
+    params: { chainId: string; walletAddress: string; spendTokenAddress: string; now: Date },
+  ): Promise<Discovered<SimulationResult>> {
+    const built = await this.buildSwapTx(route, params);
+    if (!built.ok) return built;
 
     const simulation = await this.services.transaction.simulate({
       binanceChainId: params.chainId,
-      evmTx: { from: tx.from, to: tx.to, value: tx.value ?? "0", data: tx.data },
+      evmTx: built.value,
     });
     if (!simulation.ok) {
       return discoveryErr({ kind: "SPONSOR_UNAVAILABLE", message: simulation.error.message, cause: simulation.error });
     }
     return discoveryOk(simulation.value);
+  }
+
+  async buildSwapTransaction(
+    route: ExecutableRoute,
+    params: { chainId: string; walletAddress: string; spendTokenAddress: string },
+  ): Promise<Discovered<UnsignedEvmTransaction>> {
+    return this.buildSwapTx(route, params);
   }
 
   async getWalletBalances(walletAddress: string, spendAsset: AssetMetadata, chainId: string) {

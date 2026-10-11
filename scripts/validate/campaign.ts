@@ -45,6 +45,7 @@ function recorder(port: DiscoveryPort, calls: Call[]): DiscoveryPort {
     getAllowance: wrap("getAllowance", port.getAllowance.bind(port)),
     buildApprovalTransaction: wrap("buildApprovalTransaction", port.buildApprovalTransaction.bind(port)),
     simulateTransaction: wrap("simulateTransaction", port.simulateTransaction.bind(port)),
+    buildSwapTransaction: wrap("buildSwapTransaction", port.buildSwapTransaction.bind(port)),
   };
 }
 

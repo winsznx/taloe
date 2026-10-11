@@ -48,6 +48,8 @@ export type ReadinessOutcome =
       readonly kind: "READY_TO_SIGN";
       readonly route: ExecutableRoute;
       readonly simulation: SimulationResult;
+      /** Rebuilt from the same quoteId `simulation` just validated — hand this straight to the wallet, never a prior one. */
+      readonly swapTransaction: UnsignedEvmTransaction;
       readonly attempts: readonly CandidateAttempt[];
     }
   /** The route is fine but the wallet must approve the spender first. */
@@ -231,7 +233,12 @@ async function simulateFreshSwap(
     now: context.now,
   });
   if (gated.outcome !== "ACT") return { kind: "TRY_NEXT", reason: "SWAP_SIMULATION_FAILED", detail: gated.decisionReasons.join(",") };
-  return { kind: "DONE", value: { kind: "READY_TO_SIGN", route, simulation: simulation.value } };
+
+  // Rebuilt from the exact quoteId just simulated — not a second independent quote.
+  const built = await context.port.buildSwapTransaction(route, context);
+  if (!built.ok) return { kind: "TRY_NEXT", reason: "SWAP_BUILD_FAILED", detail: built.error.message };
+
+  return { kind: "DONE", value: { kind: "READY_TO_SIGN", route, simulation: simulation.value, swapTransaction: built.value } };
 }
 
 export interface ResumeAfterApprovalContext extends ReadinessContext {

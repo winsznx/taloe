@@ -2,28 +2,31 @@
 
 /**
  * Live-mode wallet execution panel: connect, chain, balance/gas/allowance,
- * approval-if-required, mandatory re-quote, then a fresh simulation — the
- * flow from Taloe product-lock phase section 3. Fixture mode never renders
- * this (see `/review`); its scripted demo stays exactly as it was.
+ * approval-if-required, mandatory re-quote, fresh simulation, sign, broadcast,
+ * and independent balance-based verification — the full flow from route
+ * selection to a confirmed, verified fill. Fixture mode never renders this
+ * (see `/review`); its scripted demo stays exactly as it was.
  *
- * This panel PREPARES a swap for signing. It does not broadcast the swap
- * itself — that "Confirm and execute" step stays gated behind
- * READY_TO_SIGN and is unchanged from the existing (fixture-only) flow,
- * because executing a live tokenized-stock purchase needs separate, explicit
- * human authorization (Taloe product-lock phase section 5).
+ * The human signs every transaction in their own wallet — this component
+ * never holds a key and never broadcasts anything the human did not
+ * explicitly approve in their wallet's own UI. "Confirm and execute" sends
+ * the SAME `swapTransaction` `prepareExecution`/`resumeAfterApproval` already
+ * built and simulated; nothing is rebuilt or substituted at sign time.
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { deriveWalletReadinessState, WALLET_READINESS_COPY } from "@taloe/execution";
 import type { SignedLifecyclePhase, WalletFacts } from "@taloe/execution";
 import type { ReadinessOutcome } from "@taloe/router-core";
+import { readErc20Balance } from "@taloe/router-core/chain-reader";
 
 import { checkExecutionReadiness, checkPostApprovalReadiness } from "@/server/actions/readiness";
 import { useAllowance } from "@/lib/wallet/useAllowance";
 import { useBalances } from "@/lib/wallet/useBalances";
 import { useWallet } from "@/lib/wallet/useWallet";
 import { sendTransaction, getInjectedProvider } from "@/lib/wallet/provider";
+import { waitForReceipt } from "@/lib/wallet/receipt";
 
 /** Rough estimate, not an exact gas quote — the wallet computes the real cost at sign time. */
 const MIN_GAS_BALANCE_WEI = 1_000_000_000_000_000n; // 0.001 BNB
@@ -138,6 +141,43 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
       .finally(() => setChecking(false));
   };
 
+  const [verifiedReceive, setVerifiedReceive] = useState<string | null>(null);
+
+  /** Signs and broadcasts the ALREADY-SIMULATED swap, then verifies by reading the actual balance delta — never by trusting the receipt status alone. */
+  const signAndExecuteSwap = useCallback((): void => {
+    if (readiness?.kind !== "READY_TO_SIGN" || !wallet.address) return;
+    const owner = wallet.address;
+    const wrapperToken = readiness.route.wrapper.tokenContractAddress;
+    setActionError(null);
+    setLifecycle({ kind: "SWAP_BROADCAST_PENDING" });
+
+    void (async () => {
+      const before = await readErc20Balance({ rpcUrl: props.rpcUrl }, { tokenAddress: wrapperToken, owner });
+      const hash = await sendTransaction(getInjectedProvider(), {
+        from: owner,
+        to: readiness.swapTransaction.to,
+        value: readiness.swapTransaction.value,
+        data: readiness.swapTransaction.data,
+      });
+      const receipt = await waitForReceipt(props.rpcUrl, hash);
+      if (receipt.status !== "0x1") throw new Error(`Transaction reverted on-chain (block ${receipt.blockNumber}). Check ${hash} on BscScan.`);
+
+      setLifecycle({ kind: "SWAP_CHAIN_PENDING_VERIFICATION" });
+      const after = await readErc20Balance({ rpcUrl: props.rpcUrl }, { tokenAddress: wrapperToken, owner });
+      const delta = before.ok && after.ok ? BigInt(after.value) - BigInt(before.value) : null;
+      if (delta === null || delta <= 0n) {
+        setLifecycle({ kind: "SWAP_VERIFICATION_FAILED" });
+        setActionError(`Broadcast succeeded but the ${readiness.route.wrapper.tokenSymbol} balance did not increase. Check the transaction directly before trusting this fill.`);
+        return;
+      }
+      setVerifiedReceive(delta.toString());
+      setLifecycle({ kind: "SWAP_VERIFIED_SUCCESS" });
+    })().catch((error: unknown) => {
+      setLifecycle(null);
+      setActionError(error instanceof Error ? error.message : "The swap could not be signed or confirmed");
+    });
+  }, [readiness, wallet.address, props.rpcUrl]);
+
   return (
     <div className="card" style={{ marginTop: "var(--space-5)" }}>
       <p className="field-label">Wallet</p>
@@ -163,10 +203,19 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
         <button className="button" type="button" onClick={confirmApprovalAndRequote} disabled={checking}>
           {checking ? "Verifying…" : "I've approved — verify and refresh price"}
         </button>
-      ) : state === "REQUOTE_REQUIRED" || state === "SIMULATION_FAILED" ? (
+      ) : state === "REQUOTE_REQUIRED" || state === "SIMULATION_FAILED" || state === "VERIFICATION_FAILED" ? (
         <button className="button" type="button" onClick={runReadinessCheck} disabled={checking}>
           {checking ? "Checking…" : "Try again"}
         </button>
+      ) : state === "READY_TO_SIGN" ? (
+        <button className="button" type="button" onClick={signAndExecuteSwap}>
+          Confirm and execute
+        </button>
+      ) : state === "VERIFIED_SUCCESS" && readiness?.kind === "READY_TO_SIGN" ? (
+        <p>
+          Done. Received ~{verifiedReceive} {readiness.route.wrapper.tokenSymbol} (base units), verified on-chain —
+          not just a receipt status.
+        </p>
       ) : null}
 
       {wallet.address ? (

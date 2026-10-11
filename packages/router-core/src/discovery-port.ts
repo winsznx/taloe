@@ -170,4 +170,16 @@ export interface DiscoveryPort {
     transaction: UnsignedEvmTransaction;
     now: Date;
   }): Promise<Discovered<SimulationResult>>;
+
+  /**
+   * The unsigned swap transaction for an already-quoted, already-simulated
+   * SWAP route, for the wallet layer to sign. Rebuilt from the same quoteId
+   * `simulateRoute` just validated, not a second independent quote — it must
+   * never be called for a stale route (see `resumeAfterApproval`, which
+   * re-quotes before this is ever reached).
+   */
+  buildSwapTransaction(
+    route: ExecutableRoute,
+    params: { chainId: string; walletAddress: string; spendTokenAddress: string },
+  ): Promise<Discovered<UnsignedEvmTransaction>>;
 }

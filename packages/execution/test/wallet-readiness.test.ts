@@ -76,7 +76,7 @@ describe("deriveWalletReadinessState — pre-signature readiness (from prepareEx
   });
 
   it("is READY_TO_SIGN when readiness produced a simulated, fresh swap", () => {
-    expect(derive({ readiness: { kind: "READY_TO_SIGN", route: {} as never, simulation: {} as never, attempts: [] } })).toBe(
+    expect(derive({ readiness: { kind: "READY_TO_SIGN", route: {} as never, simulation: {} as never, swapTransaction: {} as never, attempts: [] } })).toBe(
       "READY_TO_SIGN",
     );
   });

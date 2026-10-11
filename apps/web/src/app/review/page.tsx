@@ -194,31 +194,32 @@ export default async function ReviewPage({
         />
       ) : null}
 
-      {!quoteUsable ? (
-        <div className="card" style={{ marginTop: "var(--space-5)" }} role="alert">
-          <p className="field-label">This price has expired</p>
-          <p className="field-hint">Market conditions changed. Refresh to get a current price before signing.</p>
-          <Link className="button" style={{ marginTop: "var(--space-4)" }} href={`/review?${intentQueryString(intent, { routeId: route.routeId })}`}>
-            Refresh price
-          </Link>
-        </div>
-      ) : !simulationClear ? (
-        <div className="card" style={{ marginTop: "var(--space-5)" }} role="alert">
-          <p className="field-label">Not ready to sign</p>
-          <p className="field-hint">
-            Taloe will not ask you to sign a transaction unless its simulation passed.
-            {simulation === null ? " Connect a wallet to run the simulation." : " The simulation did not pass."}
-          </p>
-        </div>
-      ) : (
-        <ConfirmAction
-          intent={intent}
-          routeId={route.routeId}
-          mode={route.quote.executionMode}
-          defaultScenario={defaultScenario}
-          showScenarioPicker={config.dataMode === "fixture"}
-        />
-      )}
+      {config.dataMode === "fixture" ? (
+        !quoteUsable ? (
+          <div className="card" style={{ marginTop: "var(--space-5)" }} role="alert">
+            <p className="field-label">This price has expired</p>
+            <p className="field-hint">Market conditions changed. Refresh to get a current price before signing.</p>
+            <Link className="button" style={{ marginTop: "var(--space-4)" }} href={`/review?${intentQueryString(intent, { routeId: route.routeId })}`}>
+              Refresh price
+            </Link>
+          </div>
+        ) : !simulationClear ? (
+          <div className="card" style={{ marginTop: "var(--space-5)" }} role="alert">
+            <p className="field-label">Not ready to sign</p>
+            <p className="field-hint">
+              Taloe will not ask you to sign a transaction unless its simulation passed.
+              {simulation === null ? " Connect a wallet to run the simulation." : " The simulation did not pass."}
+            </p>
+          </div>
+        ) : (
+          <ConfirmAction
+            intent={intent}
+            routeId={route.routeId}
+            mode={route.quote.executionMode}
+            defaultScenario={defaultScenario}
+          />
+        )
+      ) : null}
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
         <Link href={`/route?${intentQueryString(intent)}`}>Back to route</Link>
@@ -227,18 +228,17 @@ export default async function ReviewPage({
   );
 }
 
+/** Fixture-mode only — the demo scenario picker always applies here (see the call site). */
 function ConfirmAction({
   intent,
   routeId,
   mode,
   defaultScenario,
-  showScenarioPicker,
 }: {
   intent: IntentQuery;
   routeId: string;
   mode: "SWAP" | "RFQ";
   defaultScenario: FixtureExecutionScenario;
-  showScenarioPicker: boolean;
 }): ReactNode {
   const scenarios = FIXTURE_EXECUTION_SCENARIOS.filter((s) =>
     mode === "SWAP" ? s.startsWith("SWAP") : s.startsWith("RFQ"),
@@ -261,23 +261,19 @@ function ConfirmAction({
       {/* eslint-disable-next-line react-hooks/purity -- see comment above */}
       <input type="hidden" name="startedAt" value={String(Date.now())} />
 
-      {showScenarioPicker ? (
-        <label className="field">
-          <span className="field-label">Demo outcome (fixture mode only)</span>
-          <select className="input" name="scenario" defaultValue={defaultScenario}>
-            {scenarios.map((scenario) => (
-              <option key={scenario} value={scenario}>
-                {scenario.replaceAll("_", " ").toLowerCase()}
-              </option>
-            ))}
-          </select>
-          <span className="field-hint">
-            Lets you exercise every terminal state without live credentials. Not shown in live mode.
-          </span>
-        </label>
-      ) : (
-        <input type="hidden" name="scenario" value={defaultScenario} />
-      )}
+      <label className="field">
+        <span className="field-label">Demo outcome (fixture mode only)</span>
+        <select className="input" name="scenario" defaultValue={defaultScenario}>
+          {scenarios.map((scenario) => (
+            <option key={scenario} value={scenario}>
+              {scenario.replaceAll("_", " ").toLowerCase()}
+            </option>
+          ))}
+        </select>
+        <span className="field-hint">
+          Lets you exercise every terminal state without live credentials. Not shown in live mode.
+        </span>
+      </label>
 
       <button className="button" type="submit">
         Confirm and execute
