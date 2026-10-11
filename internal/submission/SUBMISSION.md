@@ -13,7 +13,7 @@ Living document. Kept current from now, not written at the deadline.
 | Contact details | held privately, not in this repository |
 | Prize wallet / UID | held privately until submission |
 | Tracks selected | main track; Agentic Wallet and Agent Studio specials are optional and evidence-gated |
-| Public repository URL | not yet published |
+| Public repository URL | https://github.com/winsznx/taloe |
 | Demo video URL | not recorded |
 | Deployed judge link | not deployed |
 | DX Report | journal started, report not written |
@@ -58,7 +58,7 @@ Stated openly, not hidden:
 
 ## V0 checklist
 
-- [ ] public repo available
+- [x] public repo available — https://github.com/winsznx/taloe
 - [ ] deployed path or reproducible judge instructions
 - [ ] demo video uploaded, sharing verified
 - [ ] DX Report submitted
