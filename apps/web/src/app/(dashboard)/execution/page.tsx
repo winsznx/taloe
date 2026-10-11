@@ -122,7 +122,7 @@ export default async function ExecutionPage({
       ) : null}
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
-        This page reflects the same progress if you refresh or come back later — execution state is
+        This page reflects the same progress if you refresh or come back later. Execution state is
         derived from when you confirmed, not stored only in this browser tab.
       </p>
     </section>

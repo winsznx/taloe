@@ -209,7 +209,7 @@ function RejectionList({
               <span className="status-marker">[--]</span>
               <span>
                 <strong>{candidate.wrapperSymbol}</strong>
-                {candidate.platformId ? ` (${candidate.platformId})` : ""} —{" "}
+                {candidate.platformId ? ` (${candidate.platformId})` : ""}:{" "}
                 {candidate.reasons
                   .map((reason) => explainReason(reason as Parameters<typeof explainReason>[0], companyName))
                   .join(" ")}
@@ -348,7 +348,7 @@ export function RouteSummary({
         ) : (
           <li>
             <span className="status-marker">deviation</span>
-            <span>Not checkable — no trustworthy reference available</span>
+            <span>Not checkable, no trustworthy reference available</span>
           </li>
         )}
         <li>
@@ -361,8 +361,8 @@ export function RouteSummary({
             {freshness === "FRESH"
               ? "Fresh"
               : freshness === "EXPIRING"
-                ? "Expiring soon — will refresh before you sign"
-                : "Expired — will be refreshed"}
+                ? "Expiring soon, will refresh before you sign"
+                : "Expired, will be refreshed"}
           </span>
         </li>
         {!evaluation.comparable ? (

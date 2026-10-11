@@ -29,7 +29,7 @@ export default function LandingPage(): ReactNode {
             </h1>
             <p className="hero-sub">
               Taloe checks what your order actually executes at, on every wrapper Binance
-              can route to for that company, before you buy — and refuses the ones that
+              can route to for that company, before you buy, and refuses the ones that
               cost more than you said.
             </p>
             <div className="hero-actions">
@@ -55,7 +55,7 @@ export default function LandingPage(): ReactNode {
                 <p className="hero-compare-note">still clean at $100,000</p>
               </div>
             </div>
-            <p className="hero-figure-caption">Same company, same instant, same spend — two different fills.</p>
+            <p className="hero-figure-caption">Same company, same instant, same spend. Two different fills.</p>
           </div>
         </div>
       </section>
@@ -71,7 +71,7 @@ export default function LandingPage(): ReactNode {
             and by order size, and the difference is not always in the same direction.
           </p>
           <p className="section-lede">
-            A static rule — &ldquo;always use the usually-deeper wrapper&rdquo; — was tested
+            A static rule, &ldquo;always use the usually-deeper wrapper,&rdquo; was tested
             against live data and failed in three measured cases. At $100,000, AVGO, COIN
             and DRAM each returned a fully executable quote from the &ldquo;safer&rdquo;
             wrapper priced 170 to 5,168 basis points away from reference, while the other
@@ -93,7 +93,7 @@ export default function LandingPage(): ReactNode {
                 <p className="step-title">Compare</p>
                 <p className="step-body">
                   Taloe pulls a live executable quote from every wrapper available for the
-                  company you named — not a listed price, a quote the issuer would actually
+                  company you named, not a listed price, a quote the issuer would actually
                   honor right now.
                 </p>
               </div>
@@ -104,7 +104,7 @@ export default function LandingPage(): ReactNode {
                 <p className="step-title">Check</p>
                 <p className="step-body">
                   Each quote is converted into underlying-equivalent shares and measured
-                  against the reference price, at the exact size you asked for — small and
+                  against the reference price, at the exact size you asked for. Small and
                   large orders can land on opposite sides of the same limit.
                 </p>
               </div>
@@ -136,7 +136,7 @@ export default function LandingPage(): ReactNode {
             </div>
             <div className="proof-stat">
               <p className="proof-number">97%</p>
-              <p className="proof-caption">of ordinary retail-sized orders price the same across wrappers — Taloe says so, it doesn&apos;t invent a winner</p>
+              <p className="proof-caption">of ordinary retail-sized orders price the same across wrappers. Taloe says so, it doesn&apos;t invent a winner</p>
             </div>
             <div className="proof-stat">
               <p className="proof-number">2</p>
@@ -155,7 +155,7 @@ export default function LandingPage(): ReactNode {
             <a href="https://bscscan.com/tx/0xd73092697cdc32778e5fda0ae1cf480f7f78e0253382f1e1a93c95881c3b6a92" className="mono">
               0xd73092…b6a92
             </a>{" "}
-            — check them on BscScan yourself.
+            . Check them on BscScan yourself.
           </p>
         </div>
       </section>
@@ -167,7 +167,7 @@ export default function LandingPage(): ReactNode {
           </h2>
           <p className="section-lede">
             Connect a wallet, name a company and an amount, and see the route Taloe would
-            take — or the reason it wouldn&apos;t.
+            take, or the reason it wouldn&apos;t.
           </p>
           <Link href="/app" className="button final-cta cta-accent">
             Open the dashboard

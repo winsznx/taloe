@@ -115,8 +115,8 @@ export default async function ReviewPage({
             <span>
               {decision.intent.maxDeviationBps} bps
               {evaluation.referenceDeviationBps !== null
-                ? ` — currently ${evaluation.referenceDeviationBps} bps`
-                : " — not checkable right now"}
+                ? `, currently ${evaluation.referenceDeviationBps} bps`
+                : ", not checkable right now"}
             </span>
           </li>
           <li>
@@ -165,7 +165,7 @@ export default async function ReviewPage({
             ) : simulation.ok ? (
               <p className={simulation.value.status === "PASS" ? undefined : "field-hint"}>
                 {simulation.value.status === "PASS"
-                  ? "Passed — this transaction was tested against the chain and succeeded."
+                  ? "Passed. This transaction was tested against the chain and succeeded."
                   : `Failed: ${simulation.value.failReason ?? "no reason reported"}`}
               </p>
             ) : (

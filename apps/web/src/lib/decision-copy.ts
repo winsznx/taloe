@@ -21,7 +21,7 @@ export const OUTCOME_SUMMARY: Readonly<Record<DecisionOutcome, string>> = {
   ACT: "This route met every check Taloe runs, including your execution limit.",
   NO_ACTION: "Your wallet already holds the exposure this request asked for, so there is nothing to buy.",
   REFUSE:
-    "Taloe found candidates, but every one of them failed a check that actually matters — an expired price, a failed simulation, or a route priced outside your limit. Refusing is the correct outcome here, not an error.",
+    "Taloe found candidates, but every one of them failed a check that actually matters: an expired price, a failed simulation, or a route priced outside your limit. Refusing is the correct outcome here, not an error.",
   UNKNOWN:
     "Taloe couldn't establish enough trustworthy information to compare routes safely, so it isn't recommending one.",
   MANUAL_REVIEW: "More than one company matches what you typed. Pick the one you meant.",

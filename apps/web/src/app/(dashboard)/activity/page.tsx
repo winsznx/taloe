@@ -23,7 +23,7 @@ export default function ActivityPage(): ReactNode {
         <p>Persistent activity history is not wired up yet.</p>
         <p className="field-hint" style={{ marginTop: "var(--space-3)" }}>
           Each execution already produces a receipt with its own link (timestamp, ticker,
-          wrapper, spend amount, and verified status) — that link is currently the only durable
+          wrapper, spend amount, and verified status), that link is currently the only durable
           record. A per-wallet history that survives across sessions needs the route/execution
           store described in the product plan, which has not been built.
         </p>

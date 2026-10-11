@@ -122,9 +122,9 @@ export default async function ReceiptPage({
 
         <p className="field-hint" style={{ marginTop: "var(--space-4)" }}>
           {verified
-            ? "This result was independently checked after settlement — not assumed from a broadcast or vendor acknowledgement alone."
+            ? "This result was independently checked after settlement, not assumed from a broadcast or vendor acknowledgement alone."
             : state === "VERIFICATION_FAILED"
-              ? "Taloe could not confirm the outcome within its verification window. This is not the same as a confirmed failure — check the transaction directly if one exists."
+              ? "Taloe could not confirm the outcome within its verification window. This is not the same as a confirmed failure. Check the transaction directly if one exists."
               : "The network or the market maker reported this did not settle. No funds should have moved beyond what was already spent on gas, if any."}
         </p>
       </div>

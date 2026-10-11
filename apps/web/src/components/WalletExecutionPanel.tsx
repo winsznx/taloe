@@ -215,7 +215,7 @@ export function WalletExecutionPanel(props: WalletExecutionPanelProps): React.Re
         </button>
       ) : state === "VERIFIED_SUCCESS" && readiness?.kind === "READY_TO_SIGN" ? (
         <p>
-          Done. Received ~{verifiedReceive} {readiness.route.wrapper.tokenSymbol} (base units), verified on-chain —
+          Done. Received ~{verifiedReceive} {readiness.route.wrapper.tokenSymbol} (base units), verified on-chain,
           not just a receipt status.
         </p>
       ) : null}
