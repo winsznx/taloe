@@ -113,12 +113,12 @@ export default async function RoutePage({
 
       {decision.outcome === "NO_ACTION" ? (
         <p>
-          <Link href="/">Start a new request</Link>
+          <Link href="/app">Start a new request</Link>
         </p>
       ) : null}
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
-        <Link href="/">Change your request</Link>
+        <Link href="/app">Change your request</Link>
       </p>
     </section>
   );
@@ -132,7 +132,7 @@ function InputError({ message }: { message: string }): ReactNode {
       </h1>
       <p>{message}</p>
       <p style={{ marginTop: "var(--space-5)" }}>
-        <Link href="/">Start again</Link>
+        <Link href="/app">Start again</Link>
       </p>
     </section>
   );
@@ -149,7 +149,7 @@ function SponsorUnavailable({ message }: { message: string }): ReactNode {
         {message}
       </p>
       <p style={{ marginTop: "var(--space-5)" }}>
-        <Link href="/">Try again</Link>
+        <Link href="/app">Try again</Link>
       </p>
     </section>
   );

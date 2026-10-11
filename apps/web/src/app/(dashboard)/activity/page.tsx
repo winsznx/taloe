@@ -30,7 +30,7 @@ export default function ActivityPage(): ReactNode {
       </div>
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
-        <Link href="/">Start a new request</Link>
+        <Link href="/app">Start a new request</Link>
       </p>
     </section>
   );

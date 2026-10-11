@@ -130,7 +130,7 @@ export default async function ReceiptPage({
       </div>
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
-        <Link href="/">Start a new request</Link> · <Link href="/activity">View activity</Link>
+        <Link href="/app">Start a new request</Link> · <Link href="/activity">View activity</Link>
       </p>
     </section>
   );
@@ -144,7 +144,7 @@ function ReceiptError({ message }: { message: string }): ReactNode {
       </h1>
       <p>{message}</p>
       <p style={{ marginTop: "var(--space-5)" }}>
-        <Link href="/">Start again</Link>
+        <Link href="/app">Start again</Link>
       </p>
     </section>
   );

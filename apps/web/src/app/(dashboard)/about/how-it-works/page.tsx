@@ -54,7 +54,7 @@ export default function HowItWorksPage(): ReactNode {
       </p>
 
       <p className="notice" style={{ marginTop: "var(--space-6)" }}>
-        <Link href="/">Back to Taloe</Link>
+        <Link href="/app">Back to Taloe</Link>
       </p>
     </article>
   );

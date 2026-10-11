@@ -137,7 +137,7 @@ function ExecutionError({ message }: { message: string }): ReactNode {
       </h1>
       <p>{message}</p>
       <p style={{ marginTop: "var(--space-5)" }}>
-        <Link href="/">Start again</Link>
+        <Link href="/app">Start again</Link>
       </p>
     </section>
   );
