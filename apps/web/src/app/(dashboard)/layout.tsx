@@ -2,12 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { getPublicConfig } from "@/server/config";
-
-const NAV_LINKS = [
-  { href: "/app", label: "New request" },
-  { href: "/activity", label: "Activity" },
-  { href: "/about/how-it-works", label: "How it works" },
-] as const;
+import { SidebarNav } from "@/components/SidebarNav";
 
 /**
  * The app shell every dashboard page renders inside: a sidebar plus a
@@ -17,7 +12,7 @@ const NAV_LINKS = [
  * location and the surrounding chrome changed.
  */
 export default function DashboardLayout({ children }: { children: ReactNode }): ReactNode {
-  const { dataMode } = getPublicConfig();
+  const { dataMode, binanceChainId } = getPublicConfig();
 
   return (
     <div className="dashboard-shell">
@@ -25,23 +20,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }): 
         <Link href="/" className="wordmark sidebar-wordmark">
           Taloe
         </Link>
-        <nav aria-label="Dashboard">
-          <ul className="sidebar-nav">
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="sidebar-link">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        {dataMode === "fixture" ? (
-          <p className="mode-banner" role="status">
-            <span aria-hidden="true">●</span>
-            Sample data
+        <SidebarNav />
+        <div className="sidebar-footer">
+          {dataMode === "fixture" ? (
+            <p className="mode-banner" role="status">
+              <span aria-hidden="true">●</span>
+              Sample data
+            </p>
+          ) : null}
+          <p className="sidebar-chain">
+            <span className="sidebar-chain-dot" aria-hidden="true" />
+            BNB Smart Chain<span className="mono"> · {binanceChainId}</span>
           </p>
-        ) : null}
+        </div>
       </aside>
       <main className="dashboard-content">
         <div className="page">{children}</div>
