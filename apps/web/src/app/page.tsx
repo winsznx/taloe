@@ -60,6 +60,27 @@ export default function LandingPage(): ReactNode {
         </div>
       </section>
 
+      <div className="stats-bar">
+        <div className="stats-bar-inner">
+          <div className="stats-bar-item">
+            <p className="stats-bar-number">40</p>
+            <p className="stats-bar-label">BSC underlyings tested live</p>
+          </div>
+          <div className="stats-bar-item">
+            <p className="stats-bar-number">$100,000</p>
+            <p className="stats-bar-label">largest order size tested</p>
+          </div>
+          <div className="stats-bar-item">
+            <p className="stats-bar-number">244</p>
+            <p className="stats-bar-label">automated tests passing</p>
+          </div>
+          <div className="stats-bar-item">
+            <p className="stats-bar-number">2</p>
+            <p className="stats-bar-label">verified mainnet transactions</p>
+          </div>
+        </div>
+      </div>
+
       <section className="section" aria-labelledby="problem-heading">
         <div className="section-inner">
           <h2 id="problem-heading" className="section-heading">
@@ -124,6 +145,44 @@ export default function LandingPage(): ReactNode {
         </div>
       </section>
 
+      <section className="section" aria-labelledby="capacity-heading">
+        <div className="section-inner capacity-grid">
+          <div>
+            <h2 id="capacity-heading" className="section-heading">
+              How much you can actually spend, not just whether you can
+            </h2>
+            <p className="section-lede">
+              Taloe measures a safe execution capacity for every wrapper: the largest order
+              size that stays inside your limit, read directly off executable quotes at
+              increasing sizes. No liquidity model, no extrapolation. Only sizes Binance
+              actually quoted count.
+            </p>
+            <p className="section-lede">
+              A wrapper that looks fine at $500 can fail at $5,000. Taloe finds the boundary
+              before you do.
+            </p>
+          </div>
+          <div className="card capacity-figure" aria-label="A real measured safe-capacity boundary">
+            <p className="hero-figure-label">NVDA, 1.5% limit, measured live</p>
+            <div className="capacity-row">
+              <span className="capacity-symbol">NVDAon</span>
+              <div className="capacity-bar" aria-hidden="true">
+                <span className="capacity-bar-fill" style={{ width: "13%" }} />
+              </div>
+              <span className="capacity-value">$2,000</span>
+            </div>
+            <div className="capacity-row">
+              <span className="capacity-symbol">NVDAB</span>
+              <div className="capacity-bar" aria-hidden="true">
+                <span className="capacity-bar-fill capacity-bar-fill-good" style={{ width: "100%" }} />
+              </div>
+              <span className="capacity-value">$100,000+</span>
+            </div>
+            <p className="hero-figure-caption">Bars show capacity relative to the largest size tested.</p>
+          </div>
+        </div>
+      </section>
+
       <section className="section proof-section" aria-labelledby="proof-heading">
         <div className="section-inner">
           <h2 id="proof-heading" className="section-heading">
@@ -147,16 +206,43 @@ export default function LandingPage(): ReactNode {
             </div>
           </div>
           <p className="section-lede proof-links">
-            Approval{" "}
+            Check them yourself on BscScan: approval{" "}
             <a href="https://bscscan.com/tx/0xb1ef6221a4cccaab0028106b979677368aae3eaa30d3a0502fe4e7e9184a77af" className="mono">
               0xb1ef62…a77af
             </a>{" "}
             and swap{" "}
             <a href="https://bscscan.com/tx/0xd73092697cdc32778e5fda0ae1cf480f7f78e0253382f1e1a93c95881c3b6a92" className="mono">
               0xd73092…b6a92
-            </a>{" "}
-            . Check them on BscScan yourself.
+            </a>
+            .
           </p>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="nongoals-heading">
+        <div className="section-inner">
+          <h2 id="nongoals-heading" className="section-heading">
+            What Taloe isn&apos;t
+          </h2>
+          <ul className="nongoals-list">
+            <li>
+              <strong>Not a custodian.</strong> You sign every transaction in your own
+              wallet. Taloe never holds a key.
+            </li>
+            <li>
+              <strong>Not a price-prediction tool.</strong> It compares executable quotes
+              that exist right now. It has no view on where a stock goes next.
+            </li>
+            <li>
+              <strong>Not finished with RFQ.</strong> The execution-mode branch is built and
+              tested, but no RFQ quote has been observed live yet, every quote so far has
+              been an automated-market-maker swap.
+            </li>
+            <li>
+              <strong>Not an API yet.</strong> The routing decision exists as a clean
+              internal call. Nothing external can call it today.
+            </li>
+          </ul>
         </div>
       </section>
 

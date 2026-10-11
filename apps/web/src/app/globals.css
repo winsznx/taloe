@@ -503,6 +503,111 @@ body {
   color: var(--color-text-muted);
 }
 
+.stats-bar {
+  background: var(--color-heading);
+  color: var(--color-accent-text);
+}
+
+.stats-bar-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-5);
+}
+
+.stats-bar-number {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0 0 var(--space-1);
+}
+
+.stats-bar-label {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+}
+
+.capacity-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: var(--space-7);
+  align-items: center;
+}
+
+.capacity-figure {
+  padding: var(--space-6);
+}
+
+.capacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.capacity-symbol {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  width: 6ch;
+  flex-shrink: 0;
+}
+
+.capacity-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.capacity-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-negative);
+  border-radius: 999px;
+}
+
+.capacity-bar-fill-good {
+  background: var(--color-positive);
+}
+
+.capacity-value {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-heading);
+  width: 8ch;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.nongoals-list {
+  list-style: none;
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5) var(--space-6);
+  max-width: 920px;
+}
+
+.nongoals-list li {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.nongoals-list strong {
+  display: block;
+  color: var(--color-heading);
+  margin-bottom: var(--space-1);
+}
+
 .hero-section {
   min-height: 100vh;
   display: flex;
@@ -740,6 +845,15 @@ body {
     padding-bottom: var(--space-6);
   }
   .proof-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-bar-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .capacity-grid {
+    grid-template-columns: 1fr;
+  }
+  .nongoals-list {
     grid-template-columns: 1fr;
   }
   .section {
